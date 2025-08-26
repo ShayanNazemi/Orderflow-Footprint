@@ -1,0 +1,19 @@
+{
+  "name": "orderflow",
+  "version": "1.0.0",
+  "description": "This project shows how to: 1. Maintain a **real-time full order book** from Binance USDT-margined futures (BTCUSDT by default). 2. Compute **order-flow (buy/sell taker volume)** per price level from the trade stream. 3. Render a **local real-time footprint heatmap** (price vs time, colored by delta).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
+  }
+}
