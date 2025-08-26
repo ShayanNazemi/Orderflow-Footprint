@@ -1,0 +1,14 @@
+aiohttp>=3.9
+websockets>=12.0
+numpy>=1.26
+asyncpg
+ipykernel
+pandas
+lightweight-charts
+qtpy
+pyqt5 
+pyqtwebengine
+pywebview
+pywebview[qt]
+flask
+flask-cors
