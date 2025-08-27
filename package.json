@@ -15,5 +15,14 @@
   "dependencies": {
     "typescript": "^5.9.2",
     "vite": "^7.1.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShayanNazemi/Orderflow-Footprint.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ShayanNazemi/Orderflow-Footprint/issues"
+  },
+  "homepage": "https://github.com/ShayanNazemi/Orderflow-Footprint#readme"
 }
