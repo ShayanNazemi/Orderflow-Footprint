@@ -34,19 +34,30 @@ let isPanning  = false;
 let isZoomingY = false;
 let isZoomingX = false;
 let position_start = {x: 0, y:0};
-// let priceOffset = 0;
 
-// let priceMinGlobal = 0;
-// let priceMaxGlobal = 0;
+let m_x = 1;
+let m_y = 1;
+
+let last_m_x: number;
+let last_m_y: number;
 
 let dataGlobal: FootprintCandle[];
+
+canvas.addEventListener("dblclick", e => {
+    m_x = 1;
+    m_y = 1;
+    initCanvas(ctx);
+    onDataFetched(dataGlobal);
+})
 
 canvas.addEventListener("mousedown", e => {
     isDragging = true;
     if (isOnXAxis(e)) {
         isZoomingX = true;
+        last_m_x = m_x;
     } else if (isOnYAxis(e)) {
         isZoomingY = true;
+        last_m_y = m_y;
     } else {
         isPanning = true;
     }
@@ -56,14 +67,19 @@ canvas.addEventListener("mousedown", e => {
 canvas.addEventListener("mousemove", e => {
     if (!isDragging) return;
 
-    if (isOnXAxis(e)) {
-        console.log("X axis")
-    } else if (isOnYAxis(e)) {
-        console.log("Y axis")
-    } 
-    else {
+    if (isOnXAxis(e) || isZoomingX) {
         const deltaX = e.clientX / canvas.width - position_start.x;
+        m_x = last_m_x + deltaX;
+        initCanvas(ctx);
+        renderChart(dataGlobal); 
+    } else if (isOnYAxis(e) || isZoomingY) {
         const deltaY = 1 - e.clientY / canvas.height - position_start.y;
+        m_y = last_m_y + deltaY;
+        initCanvas(ctx);
+        renderChart(dataGlobal);
+    } else {
+        const deltaX = (e.clientX / canvas.width - position_start.x) / m_x;
+        const deltaY = (1 - e.clientY / canvas.height - position_start.y) / m_y;
 
         const new_global_t_min = global_t_min - deltaX * (global_t_max - global_t_min);
         const new_global_t_max = global_t_max - deltaX * (global_t_max - global_t_min);
@@ -97,10 +113,6 @@ canvas.addEventListener("mouseleave", () => {
 // fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-24_15:25:00&end=2025-08-24_15:40:00&bin=10')
 
 
-
-let m_x = 1;
-let m_y = .5;
-
 let global_t_min: number;
 let global_t_max: number;
 let global_p_min: number;
@@ -110,35 +122,44 @@ let global_p_max: number;
 const MARGIN          = 10;
 const X_AXIS_WIDTH    = 40;
 const Y_AXIS_WIDTH    = 80;
-const MAX_INIT_BARS   = 10;
+const MAX_INIT_BARS   = 15;
 const CANDLE_WIDTH    = 10;
 const WIDTH_VOL_LEVEL = 40;
+const INIT_BAR_DIST   = Math.floor(canvas.width / MAX_INIT_BARS);
+
+const N_TICKS_X       = 20;
+const N_TICKS_Y       = 20;
+
+
+function onDataFetched(data: FootprintCandle[]) {
+    const nCandles = Math.floor(0.75 * canvas.width / (INIT_BAR_DIST));
+    const tLast = new Date(data.at(-1)?.t ?? 0).getTime();
+
+    const data_visible = data.slice(data.length - nCandles)
+    
+    global_t_max = tLast + (MAX_INIT_BARS - nCandles) * 60 * 1000;
+    global_t_min = tLast - nCandles * 60 * 1000;
+
+    const p_min = Math.min(...data_visible.map(c => c.low));
+    const p_max = Math.max(...data_visible.map(c => c.high));
+
+    global_p_min = Math.floor((p_min - 0.2  * (p_max - p_min)) / 10) * 10;
+    global_p_max = Math.ceil((p_max + 0.2  * (p_max - p_min)) / 10) * 10;
+
+    dataGlobal = data;
+    renderChart(data);
+}
 
 
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_19:25:00&end=2025-08-25_19:40:00&bin=10')
+
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_19:25:00&end=2025-08-25_19:50:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
-        global_p_min = Math.floor(Math.min(...data.map(c => c.low)) / 10) * 10;
-        global_p_max = Math.ceil(Math.max(...data.map(c => c.high)) / 10) * 10;
-
-        global_t_max = Math.max(...data.map(c => (new Date(c.t)).getTime())) + 60 * 1000
-
-        if (data.length > MAX_INIT_BARS) {
-            global_t_min = global_t_max - MAX_INIT_BARS * 60 * 1000;
-        } else {
-            global_t_min = Math.min(...data.map(c => (new Date(c.t)).getTime())) - 60 * 1000
-        }
-
-        dataGlobal = data;
-        renderChart(data);
+        onDataFetched(data);
     });
 
 function renderChart(data: FootprintCandle[]) {
-    const candleWidth = 10, gap = 100, volBar = 40;
-    // const priceMin = Math.min(...data.map(c => c.low));
-    // const priceMax = Math.max(...data.map(c => c.high));
-
     data.forEach((candle, i) => {
         ctx.fillStyle = candle.close >= candle.open ? GREEN : RED;
         ctx.strokeStyle = candle.close >= candle.open ? GREEN : RED;
@@ -198,11 +219,14 @@ function renderChart(data: FootprintCandle[]) {
     ctx.textBaseline = "middle";
     ctx.font = "12px Arial";
 
-    for (let p = global_p_min; p <= global_p_max; p+= 10) {
+    const y_ticks = linspaceDivisible(global_p_min, global_p_max, 10);
+
+    y_ticks.forEach((p, i) => {
         const r = transform(0, p, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
         ctx.fillText(p.toString(), canvas.width - (Y_AXIS_WIDTH - MARGIN), r.y);
         drawLine(ctx, 0, r.y, canvas.width - Y_AXIS_WIDTH, r.y);
-    }
+    });
+
     ctx.strokeStyle = "white";
 
     
@@ -220,11 +244,20 @@ function renderChart(data: FootprintCandle[]) {
     ctx.textBaseline = "top";
     ctx.strokeStyle = FADED_GRAY;
 
-    data.forEach((candle, i) => {
-        const t = (new Date(candle.t)).getTime();
-        const r = transform(t, 0, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+    // data.forEach((candle, i) => {
+    //     const t = (new Date(candle.t)).getTime();
+        // const r = transform(t, 0, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+    //     drawLine(ctx, r.x, 0, r.x, canvas.height - X_AXIS_WIDTH);
+    //     const label = new Date(candle.t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    //     ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
+    // });
+
+    const x_ticks = linspaceDivisible(global_t_min, global_t_max, 60 * 1000);
+
+    x_ticks.forEach((t, i) => {
+        const r = transform(new Date(t).getTime(), 0, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
         drawLine(ctx, r.x, 0, r.x, canvas.height - X_AXIS_WIDTH);
-        const label = new Date(candle.t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const label = new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
     });
     
@@ -244,14 +277,12 @@ function transform(t: number, p: number, t_min: number, t_max: number, p_min: nu
     return {x: m_x * (t - t_min) / (t_max - t_min) * W, y: H * (1 - m_y * (p - p_min) / (p_max - p_min))}
 }
 
-
 function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
 }
-
 
 function volBarSellerScaler(input: number, vMax: number, x0: number, height: number) {
     return x0 - height / vMax * input
@@ -270,10 +301,25 @@ function initCanvas(ctx: CanvasRenderingContext2D) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
+
 function isOnXAxis(e: MouseEvent) {
-    return (canvas.width - Y_AXIS_WIDTH) <= e.clientX && e.clientX <= canvas.width && e.clientY <= (canvas.height - X_AXIS_WIDTH);
+    return (canvas.height - X_AXIS_WIDTH) <= e.clientY && e.clientY <= canvas.height && e.clientX <= (canvas.width - Y_AXIS_WIDTH);
 }
 
 function isOnYAxis(e: MouseEvent) {
-    return (canvas.height - X_AXIS_WIDTH) <= e.clientY && e.clientY <= canvas.height && e.clientX <= (canvas.width - Y_AXIS_WIDTH);
+    return (canvas.width - Y_AXIS_WIDTH) <= e.clientX && e.clientX <= canvas.width && e.clientY <= (canvas.height - X_AXIS_WIDTH);
+}
+
+
+function linspace(min: number, max: number, n:number, digits: number) {
+    const step = (max - min) / (n + 1);
+    return Array.from({ length: n }, (_, i) => +(min + i * step).toFixed(digits));
+}
+
+function linspaceDivisible(min: number, max: number, step: number) {
+    const start = Math.ceil(min / step) * step;
+    const end = Math.floor(max / step) * step;
+    const values: number[] = [];
+    for (let v = start; v <= end + 1e-10; v += step) values.push(+v);
+    return values;
 }
