@@ -18,9 +18,11 @@ const canvas = document.getElementById('chart') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-const green = "#16C47F";
-const red   = "#FB4141";
-const fadedGray = "rgba(255, 255, 255, 0.1)";
+
+const MAIN_BG         = "#0B192C";
+const GREEN           = "#16C47F";
+const RED             = "#FB4141";
+const FADED_GRAY      = "rgba(255, 255, 255, 0.1)";
 
 initCanvas(ctx);
 
@@ -28,6 +30,9 @@ initCanvas(ctx);
 
 // Price axis pan effect
 let isDragging = false;
+let isPanning  = false;
+let isZoomingY = false;
+let isZoomingX = false;
 let position_start = {x: 0, y:0};
 // let priceOffset = 0;
 
@@ -38,38 +43,63 @@ let dataGlobal: FootprintCandle[];
 
 canvas.addEventListener("mousedown", e => {
     isDragging = true;
+    if (isOnXAxis(e)) {
+        isZoomingX = true;
+    } else if (isOnYAxis(e)) {
+        isZoomingY = true;
+    } else {
+        isPanning = true;
+    }
     position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
 });
 
 canvas.addEventListener("mousemove", e => {
     if (!isDragging) return;
-    const deltaX = e.clientX / canvas.width - position_start.x;
-    const deltaY = 1 - e.clientY / canvas.height - position_start.y;
 
-    const new_global_t_min = global_t_min - deltaX * (global_t_max - global_t_min);
-    const new_global_t_max = global_t_max - deltaX * (global_t_max - global_t_min);
-    const new_global_p_min = global_p_min - deltaY * (global_p_max - global_p_min);
-    const new_global_p_max = global_p_max - deltaY * (global_p_max - global_p_min);
+    if (isOnXAxis(e)) {
+        console.log("X axis")
+    } else if (isOnYAxis(e)) {
+        console.log("Y axis")
+    } 
+    else {
+        const deltaX = e.clientX / canvas.width - position_start.x;
+        const deltaY = 1 - e.clientY / canvas.height - position_start.y;
 
-    global_t_min = new_global_t_min;
-    global_t_max = new_global_t_max;
-    global_p_min = new_global_p_min;
-    global_p_max = new_global_p_max;
-    initCanvas(ctx);
-    renderChart(dataGlobal); // redraw
-    position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
+        const new_global_t_min = global_t_min - deltaX * (global_t_max - global_t_min);
+        const new_global_t_max = global_t_max - deltaX * (global_t_max - global_t_min);
+        const new_global_p_min = global_p_min - deltaY * (global_p_max - global_p_min);
+        const new_global_p_max = global_p_max - deltaY * (global_p_max - global_p_min);
 
+        global_t_min = new_global_t_min;
+        global_t_max = new_global_t_max;
+        global_p_min = new_global_p_min;
+        global_p_max = new_global_p_max;
+        initCanvas(ctx);
+        renderChart(dataGlobal); // REDraw
+        position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
+    }
 });
 
-canvas.addEventListener("mouseup", () => isDragging = false);
-canvas.addEventListener("mouseleave", () => isDragging = false);
+canvas.addEventListener("mouseup", () => {
+    isDragging = false
+    isPanning  = false
+    isZoomingX = false
+    isZoomingY = false
+});
+canvas.addEventListener("mouseleave", () => {
+    isDragging = false
+    isPanning  = false
+    isZoomingX = false
+    isZoomingY = false
+});
 
 ////////////////////////////////////////////////////////////////////////
 // fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-24_15:25:00&end=2025-08-24_15:40:00&bin=10')
 
 
 
-
+let m_x = 1;
+let m_y = .5;
 
 let global_t_min: number;
 let global_t_max: number;
@@ -110,8 +140,8 @@ function renderChart(data: FootprintCandle[]) {
     // const priceMax = Math.max(...data.map(c => c.high));
 
     data.forEach((candle, i) => {
-        ctx.fillStyle = candle.close >= candle.open ? green : red;
-        ctx.strokeStyle = candle.close >= candle.open ? green : red;
+        ctx.fillStyle = candle.close >= candle.open ? GREEN : RED;
+        ctx.strokeStyle = candle.close >= candle.open ? GREEN : RED;
         const t = (new Date(candle.t)).getTime();
         const r_open = transform(t, candle.open, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
         const r_high = transform(t, candle.high, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
@@ -157,11 +187,11 @@ function renderChart(data: FootprintCandle[]) {
 
     ////////////////////////////////////////////////////////////////////////
 
-    ctx.fillStyle = "red";
+    ctx.fillStyle = MAIN_BG;
     ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), 0, Y_AXIS_WIDTH, canvas.height)
 
     // Price axis
-    ctx.strokeStyle = fadedGray;
+    ctx.strokeStyle = FADED_GRAY;
     ctx.fillStyle = "white";
 
     ctx.textAlign = "left";
@@ -179,16 +209,16 @@ function renderChart(data: FootprintCandle[]) {
 
     ////////////////////////////////////////////////////////////////////////
 
-    ctx.fillStyle = "green";
+    ctx.fillStyle = MAIN_BG;
     ctx.fillRect(0, canvas.height - X_AXIS_WIDTH, canvas.width, X_AXIS_WIDTH)
 
-    ctx.strokeStyle = fadedGray;
+    ctx.strokeStyle = FADED_GRAY;
     ctx.fillStyle = "white";
 
     // The time axis
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.strokeStyle = fadedGray;
+    ctx.strokeStyle = FADED_GRAY;
 
     data.forEach((candle, i) => {
         const t = (new Date(candle.t)).getTime();
@@ -200,7 +230,7 @@ function renderChart(data: FootprintCandle[]) {
     
     ////////////////////////////////////////////////////////////////////////
 
-    ctx.fillStyle = "orange";
+    ctx.fillStyle = MAIN_BG;
     ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), canvas.height - X_AXIS_WIDTH, Y_AXIS_WIDTH, X_AXIS_WIDTH)
 
     ctx.strokeStyle = "white";
@@ -211,7 +241,7 @@ function renderChart(data: FootprintCandle[]) {
 }
 
 function transform(t: number, p: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number) {
-    return {x: (t - t_min) / (t_max - t_min) * W, y: H * (1 - (p - p_min) / (p_max - p_min))}
+    return {x: m_x * (t - t_min) / (t_max - t_min) * W, y: H * (1 - m_y * (p - p_min) / (p_max - p_min))}
 }
 
 
@@ -236,6 +266,14 @@ function smoothAlphaRange(x: number): number {
 
 function initCanvas(ctx: CanvasRenderingContext2D) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0B192C"; // or any color
+    ctx.fillStyle = MAIN_BG; // or any color
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function isOnXAxis(e: MouseEvent) {
+    return (canvas.width - Y_AXIS_WIDTH) <= e.clientX && e.clientX <= canvas.width && e.clientY <= (canvas.height - X_AXIS_WIDTH);
+}
+
+function isOnYAxis(e: MouseEvent) {
+    return (canvas.height - X_AXIS_WIDTH) <= e.clientY && e.clientY <= canvas.height && e.clientX <= (canvas.width - Y_AXIS_WIDTH);
 }
