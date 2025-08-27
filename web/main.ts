@@ -77,15 +77,16 @@ let global_p_min: number;
 let global_p_max: number;
 
 // Chart layout configs
-const MARGIN        = 10;
-const AXIS_WIDTH    = 60;
-const MAX_INIT_BARS = 10;
-const CANDLE_WIDTH  = 10;
-const WIDTH_VOL_LEVEL     = 40;
+const MARGIN          = 10;
+const X_AXIS_WIDTH    = 40;
+const Y_AXIS_WIDTH    = 80;
+const MAX_INIT_BARS   = 10;
+const CANDLE_WIDTH    = 10;
+const WIDTH_VOL_LEVEL = 40;
 
 
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-24_15:25:00&end=2025-08-24_15:40:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_19:25:00&end=2025-08-25_19:40:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         global_p_min = Math.floor(Math.min(...data.map(c => c.low)) / 10) * 10;
@@ -107,44 +108,6 @@ function renderChart(data: FootprintCandle[]) {
     const candleWidth = 10, gap = 100, volBar = 40;
     // const priceMin = Math.min(...data.map(c => c.low));
     // const priceMax = Math.max(...data.map(c => c.high));
-
-    ////////////////////////////////////////////////////////////////////////
-
-    // Price axis
-    ctx.strokeStyle = fadedGray;
-    ctx.fillStyle = "white";
-
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.font = "12px Arial";
-
-    for (let p = global_p_min; p <= global_p_max; p+= 10) {
-        const r = transform(0, p, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
-        ctx.fillText(p.toString(), canvas.width - (AXIS_WIDTH - MARGIN), r.y);
-        drawLine(ctx, 0, r.y, canvas.width - AXIS_WIDTH, r.y);
-    }
-    ctx.strokeStyle = "white";
-    drawLine(ctx, canvas.width - AXIS_WIDTH, 0, canvas.width - AXIS_WIDTH, canvas.height);
-
-    ////////////////////////////////////////////////////////////////////////
-
-    // The time axis
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.strokeStyle = fadedGray;
-
-    data.forEach((candle, i) => {
-        const t = (new Date(candle.t)).getTime();
-        const r = transform(t, 0, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
-        drawLine(ctx, r.x, 0, r.x, canvas.height - AXIS_WIDTH);
-        const label = new Date(candle.t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        ctx.fillText(label, r.x, canvas.height - (AXIS_WIDTH - MARGIN)); // 15px from bottom
-    });
-    ctx.strokeStyle = "white";
-    drawLine(ctx, 0, canvas.height - AXIS_WIDTH, canvas.width, canvas.height - AXIS_WIDTH);
-
-    ////////////////////////////////////////////////////////////////////////
-    
 
     data.forEach((candle, i) => {
         ctx.fillStyle = candle.close >= candle.open ? green : red;
@@ -191,6 +154,60 @@ function renderChart(data: FootprintCandle[]) {
 
         });
     });
+
+    ////////////////////////////////////////////////////////////////////////
+
+    ctx.fillStyle = "red";
+    ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), 0, Y_AXIS_WIDTH, canvas.height)
+
+    // Price axis
+    ctx.strokeStyle = fadedGray;
+    ctx.fillStyle = "white";
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "12px Arial";
+
+    for (let p = global_p_min; p <= global_p_max; p+= 10) {
+        const r = transform(0, p, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+        ctx.fillText(p.toString(), canvas.width - (Y_AXIS_WIDTH - MARGIN), r.y);
+        drawLine(ctx, 0, r.y, canvas.width - Y_AXIS_WIDTH, r.y);
+    }
+    ctx.strokeStyle = "white";
+
+    
+
+    ////////////////////////////////////////////////////////////////////////
+
+    ctx.fillStyle = "green";
+    ctx.fillRect(0, canvas.height - X_AXIS_WIDTH, canvas.width, X_AXIS_WIDTH)
+
+    ctx.strokeStyle = fadedGray;
+    ctx.fillStyle = "white";
+
+    // The time axis
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.strokeStyle = fadedGray;
+
+    data.forEach((candle, i) => {
+        const t = (new Date(candle.t)).getTime();
+        const r = transform(t, 0, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+        drawLine(ctx, r.x, 0, r.x, canvas.height - X_AXIS_WIDTH);
+        const label = new Date(candle.t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
+    });
+    
+    ////////////////////////////////////////////////////////////////////////
+
+    ctx.fillStyle = "orange";
+    ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), canvas.height - X_AXIS_WIDTH, Y_AXIS_WIDTH, X_AXIS_WIDTH)
+
+    ctx.strokeStyle = "white";
+    drawLine(ctx, 0, canvas.height - X_AXIS_WIDTH, canvas.width, canvas.height - X_AXIS_WIDTH);
+    drawLine(ctx, canvas.width - Y_AXIS_WIDTH, 0, canvas.width - Y_AXIS_WIDTH, canvas.height);
+
+
 }
 
 function transform(t: number, p: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number) {
