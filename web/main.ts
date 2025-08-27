@@ -81,13 +81,14 @@ canvas.addEventListener("mousedown", e => {
     isDragging = true;
     if (isOnXAxis(e)) {
         isZoomingX = true;
+        last_global_t_min = global_t_min;
+        last_global_t_max = global_t_max;
+        last_t_ref        = (global_t_max + global_t_min) / 2 ;
     } else if (isOnYAxis(e)) {
         isZoomingY = true;
         last_global_p_min = global_p_min;
         last_global_p_max = global_p_max;
         last_p_ref        = (global_p_max + global_p_min) / 2 ;
-
-        console.log(last_p_ref)
     } else {
         isPanning = true;
     }
@@ -98,19 +99,22 @@ canvas.addEventListener("mousemove", e => {
     if (!isDragging) return;
 
     if (isOnXAxis(e) || isZoomingX) {
-        const deltaX = e.clientX / canvas.width - position_start.x;
-        m_x = last_m_x + deltaX;
+        const deltaX = (e.clientX / canvas.width - position_start.x) / last_m_x;
+        m_x = Math.pow(3, deltaX);
+
+        global_t_min = last_t_ref + (last_global_t_min - last_t_ref ) / m_x;
+        global_t_max = last_t_ref + (last_global_t_max - last_t_ref) / m_x;
+
+        console.log(last_t_ref, global_t_min.toFixed(3), global_t_max.toFixed(3))
+
         initCanvas(ctx);
-        renderChart(dataGlobal); 
+        renderChart(dataGlobal);
     } else if (isOnYAxis(e) || isZoomingY) {
         const deltaY = (1 - e.clientY / canvas.height - position_start.y) / last_m_y;
-
         m_y = Math.pow(3, deltaY);
 
         global_p_min = last_p_ref + (last_global_p_min - last_p_ref ) / m_y;
         global_p_max = last_p_ref + (last_global_p_max - last_p_ref) / m_y;
-
-        // last_p_ref        = (global_p_max + global_p_min) / 2 ;
 
         console.log(last_p_ref, global_p_min.toFixed(3), global_p_max.toFixed(3))
 
@@ -151,12 +155,6 @@ canvas.addEventListener("mouseleave", () => {
     last_m_y = m_y;
 });
 
-////////////////////////////////////////////////////////////////////////
-// fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-24_15:25:00&end=2025-08-24_15:40:00&bin=10')
-
-
-
-
 function onDataFetched(data: FootprintCandle[]) {
     const nCandles = Math.floor(0.75 * canvas.width / (INIT_BAR_DIST));
     const tLast = new Date(data.at(-1)?.t ?? 0).getTime();
@@ -175,8 +173,6 @@ function onDataFetched(data: FootprintCandle[]) {
     dataGlobal = data;
     renderChart(data);
 }
-
-
 
 
 fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_19:25:00&end=2025-08-25_19:50:00&bin=10')
@@ -234,7 +230,8 @@ function renderChart(data: FootprintCandle[]) {
 
     ////////////////////////////////////////////////////////////////////////
 
-    ctx.fillText(m_y.toFixed(3), 1200, 200)
+    ctx.fillText(m_x.toFixed(3), 1200, 200)
+    ctx.fillText(m_y.toFixed(3), 1200, 220)
 
     ctx.fillStyle = MAIN_BG;
     ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), 0, Y_AXIS_WIDTH, canvas.height)
