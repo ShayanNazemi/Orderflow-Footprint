@@ -24,7 +24,7 @@ const GREEN           = "#16C47F";
 const RED             = "#FB4141";
 const FADED_GRAY      = "rgba(255, 255, 255, 0.1)";
 
-initCanvas(ctx);
+
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -35,6 +35,32 @@ let isZoomingY = false;
 let isZoomingX = false;
 let position_start = {x: 0, y:0};
 
+let last_global_p_min: number;
+let last_global_p_max: number;
+let last_p_ref       : number;
+
+let last_global_t_min: number;
+let last_global_t_max: number;
+let last_t_ref       : number;
+
+
+let global_t_min: number;
+let global_t_max: number;
+let global_p_min: number;
+let global_p_max: number;
+
+// Chart layout configs
+const MARGIN          = 10;
+const X_AXIS_WIDTH    = 40;
+const Y_AXIS_WIDTH    = 80;
+const MAX_INIT_BARS   = 15;
+const CANDLE_WIDTH    = 10;
+const WIDTH_VOL_LEVEL = 40;
+const INIT_BAR_DIST   = Math.floor(canvas.width / MAX_INIT_BARS);
+
+const N_TICKS_X       = 20;
+const N_TICKS_Y       = 20;
+
 let m_x = 1;
 let m_y = 1;
 
@@ -43,9 +69,10 @@ let last_m_y: number;
 
 let dataGlobal: FootprintCandle[];
 
+initCanvas(ctx);
+
+
 canvas.addEventListener("dblclick", e => {
-    m_x = 1;
-    m_y = 1;
     initCanvas(ctx);
     onDataFetched(dataGlobal);
 })
@@ -54,10 +81,13 @@ canvas.addEventListener("mousedown", e => {
     isDragging = true;
     if (isOnXAxis(e)) {
         isZoomingX = true;
-        last_m_x = m_x;
     } else if (isOnYAxis(e)) {
         isZoomingY = true;
-        last_m_y = m_y;
+        last_global_p_min = global_p_min;
+        last_global_p_max = global_p_max;
+        last_p_ref        = (global_p_max + global_p_min) / 2 ;
+
+        console.log(last_p_ref)
     } else {
         isPanning = true;
     }
@@ -73,8 +103,17 @@ canvas.addEventListener("mousemove", e => {
         initCanvas(ctx);
         renderChart(dataGlobal); 
     } else if (isOnYAxis(e) || isZoomingY) {
-        const deltaY = 1 - e.clientY / canvas.height - position_start.y;
-        m_y = last_m_y + deltaY;
+        const deltaY = (1 - e.clientY / canvas.height - position_start.y) / last_m_y;
+
+        m_y = Math.pow(3, deltaY);
+
+        global_p_min = last_p_ref + (last_global_p_min - last_p_ref ) / m_y;
+        global_p_max = last_p_ref + (last_global_p_max - last_p_ref) / m_y;
+
+        // last_p_ref        = (global_p_max + global_p_min) / 2 ;
+
+        console.log(last_p_ref, global_p_min.toFixed(3), global_p_max.toFixed(3))
+
         initCanvas(ctx);
         renderChart(dataGlobal);
     } else {
@@ -101,34 +140,21 @@ canvas.addEventListener("mouseup", () => {
     isPanning  = false
     isZoomingX = false
     isZoomingY = false
+
+    last_m_y = m_y;
 });
 canvas.addEventListener("mouseleave", () => {
     isDragging = false
     isPanning  = false
     isZoomingX = false
     isZoomingY = false
+    last_m_y = m_y;
 });
 
 ////////////////////////////////////////////////////////////////////////
 // fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-24_15:25:00&end=2025-08-24_15:40:00&bin=10')
 
 
-let global_t_min: number;
-let global_t_max: number;
-let global_p_min: number;
-let global_p_max: number;
-
-// Chart layout configs
-const MARGIN          = 10;
-const X_AXIS_WIDTH    = 40;
-const Y_AXIS_WIDTH    = 80;
-const MAX_INIT_BARS   = 15;
-const CANDLE_WIDTH    = 10;
-const WIDTH_VOL_LEVEL = 40;
-const INIT_BAR_DIST   = Math.floor(canvas.width / MAX_INIT_BARS);
-
-const N_TICKS_X       = 20;
-const N_TICKS_Y       = 20;
 
 
 function onDataFetched(data: FootprintCandle[]) {
@@ -208,6 +234,8 @@ function renderChart(data: FootprintCandle[]) {
 
     ////////////////////////////////////////////////////////////////////////
 
+    ctx.fillText(m_y.toFixed(3), 1200, 200)
+
     ctx.fillStyle = MAIN_BG;
     ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), 0, Y_AXIS_WIDTH, canvas.height)
 
@@ -219,7 +247,7 @@ function renderChart(data: FootprintCandle[]) {
     ctx.textBaseline = "middle";
     ctx.font = "12px Arial";
 
-    const y_ticks = linspaceDivisible(global_p_min, global_p_max, 10);
+    const y_ticks = linspaceDivisible(global_p_min, global_p_max, 20);
 
     y_ticks.forEach((p, i) => {
         const r = transform(0, p, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
@@ -260,6 +288,7 @@ function renderChart(data: FootprintCandle[]) {
         const label = new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
     });
+
     
     ////////////////////////////////////////////////////////////////////////
 
@@ -270,7 +299,7 @@ function renderChart(data: FootprintCandle[]) {
     drawLine(ctx, 0, canvas.height - X_AXIS_WIDTH, canvas.width, canvas.height - X_AXIS_WIDTH);
     drawLine(ctx, canvas.width - Y_AXIS_WIDTH, 0, canvas.width - Y_AXIS_WIDTH, canvas.height);
 
-
+    
 }
 
 function transform(t: number, p: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number) {
@@ -296,6 +325,10 @@ function smoothAlphaRange(x: number): number {
 }
 
 function initCanvas(ctx: CanvasRenderingContext2D) {
+    m_x = 1;
+    m_y = 1;
+    last_m_x = m_x;
+    last_m_y = m_y;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = MAIN_BG; // or any color
     ctx.fillRect(0, 0, canvas.width, canvas.height);
