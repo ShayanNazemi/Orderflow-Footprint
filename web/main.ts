@@ -14,6 +14,63 @@ type FootprintCandle = {
     footprint: PriceLevel[];
 };
 
+type CanvasState = {
+    isDragging: boolean,
+    isPanning: boolean,
+    isZoomingX: boolean,
+    isZoomingY: boolean,
+    init_position: {
+        x: number,
+        y: number
+    },
+
+    t_min: number,
+    t_max: number,
+    t_ref: number,
+
+    p_min: number,
+    p_max: number,
+    p_ref: number,
+
+    m_x: number,
+    m_y: number,
+
+    data      : FootprintCandle[]
+};
+
+
+function setState(partial: Partial<CanvasState>) {
+    state = { ...state, ...partial };
+}
+
+function setPrevState(partial: Partial<CanvasState>) {
+    prevState = { ...prevState, ...partial };
+}
+
+const INIT_STATE: CanvasState = {
+    isDragging: false,
+    isPanning: false,
+    isZoomingX: false,
+    isZoomingY: false,
+    init_position: {
+        x: 0,
+        y: 0
+    },
+
+    t_min: 0,
+    t_max: 0,
+    t_ref: 0,
+
+    p_min: 0,
+    p_max: 0,
+    p_ref: 0,
+
+    m_x: 1,
+    m_y: 1,
+
+    data      : []
+}
+
 const canvas = document.getElementById('chart') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 canvas.width = window.innerWidth;
@@ -29,25 +86,25 @@ const FADED_GRAY      = "rgba(255, 255, 255, 0.1)";
 ////////////////////////////////////////////////////////////////////////
 
 // Price axis pan effect
-let isDragging = false;
-let isPanning  = false;
-let isZoomingY = false;
-let isZoomingX = false;
-let position_start = {x: 0, y:0};
+// let isDragging = false;
+// let isPanning  = false;
+// let isZoomingY = false;
+// let isZoomingX = false;
+// let position_start = {x: 0, y:0};
 
-let last_global_p_min: number;
-let last_global_p_max: number;
-let last_p_ref       : number;
+// let last_global_p_min: number;
+// let last_global_p_max: number;
+// let last_p_ref       : number;
 
-let last_global_t_min: number;
-let last_global_t_max: number;
-let last_t_ref       : number;
+// let last_global_t_min: number;
+// let last_global_t_max: number;
+// let last_t_ref       : number;
 
 
-let global_t_min: number;
-let global_t_max: number;
-let global_p_min: number;
-let global_p_max: number;
+// let global_t_min: number;
+// let global_t_max: number;
+// let global_p_min: number;
+// let global_p_max: number;
 
 // Chart layout configs
 const MARGIN          = 10;
@@ -61,116 +118,161 @@ const INIT_BAR_DIST   = Math.floor(canvas.width / MAX_INIT_BARS);
 const N_TICKS_X       = 20;
 const N_TICKS_Y       = 20;
 
-let m_x = 1;
-let m_y = 1;
+// let m_x = 1;
+// let m_y = 1;
 
-let last_m_x: number;
-let last_m_y: number;
+// let last_m_x: number;
+// let last_m_y: number;
 
-let dataGlobal: FootprintCandle[];
+// let dataGlobal: FootprintCandle[];
+
+let state: CanvasState = { ...INIT_STATE };
+let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
 
 canvas.addEventListener("dblclick", e => {
     initCanvas(ctx);
-    onDataFetched(dataGlobal);
+    onDataFetched(state.data);
 })
 
 canvas.addEventListener("mousedown", e => {
-    isDragging = true;
     if (isOnXAxis(e)) {
-        isZoomingX = true;
-        last_global_t_min = global_t_min;
-        last_global_t_max = global_t_max;
-        last_t_ref        = (global_t_max + global_t_min) / 2 ;
+        setState({ isZoomingX : true })
+        setPrevState({ t_min: state.t_min, t_max: state.t_max, t_ref: (state.t_min + state.t_max) / 2})
+        // isZoomingX = true;
+        // last_global_t_min = global_t_min;
+        // last_global_t_max = global_t_max;
+        // last_t_ref        = (global_t_max + global_t_min) / 2 ;
     } else if (isOnYAxis(e)) {
-        isZoomingY = true;
-        last_global_p_min = global_p_min;
-        last_global_p_max = global_p_max;
-        last_p_ref        = (global_p_max + global_p_min) / 2 ;
+        setState({ isZoomingY : true })
+        setPrevState({ p_min: state.p_min, p_max: state.p_max, p_ref: (state.p_min + state.p_max) / 2})
+        // isZoomingY = true;
+        // last_global_p_min = global_p_min;
+        // last_global_p_max = global_p_max;
+        // last_p_ref        = (global_p_max + global_p_min) / 2 ;
     } else {
-        isPanning = true;
+        setState({ isPanning : true })
+        // isPanning = true;
     }
-    position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
+    setState({ isDragging : true, init_position: {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height} })
+    // isDragging = true;
+    // position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
 });
 
 canvas.addEventListener("mousemove", e => {
-    if (!isDragging) return;
+    if (!state.isDragging) return;
 
-    if (isOnXAxis(e) || isZoomingX) {
-        const deltaX = (e.clientX / canvas.width - position_start.x) / last_m_x;
-        m_x = Math.pow(3, deltaX);
+    if (isOnXAxis(e) || state.isZoomingX) {
+        const deltaX = (e.clientX / canvas.width - state.init_position.x) / prevState.m_x;
+        const m_x = Math.pow(3, deltaX);
+        setState({ 
+            m_x: m_x,
+            t_min: prevState.t_ref + (prevState.t_min - prevState.t_ref) / m_x,
+            t_max: prevState.t_ref + (prevState.t_max - prevState.t_ref) / m_x
+        });
 
-        global_t_min = last_t_ref + (last_global_t_min - last_t_ref ) / m_x;
-        global_t_max = last_t_ref + (last_global_t_max - last_t_ref) / m_x;
-
-        console.log(last_t_ref, global_t_min.toFixed(3), global_t_max.toFixed(3))
-
-        initCanvas(ctx);
-        renderChart(dataGlobal);
-    } else if (isOnYAxis(e) || isZoomingY) {
-        const deltaY = (1 - e.clientY / canvas.height - position_start.y) / last_m_y;
-        m_y = Math.pow(3, deltaY);
-
-        global_p_min = last_p_ref + (last_global_p_min - last_p_ref ) / m_y;
-        global_p_max = last_p_ref + (last_global_p_max - last_p_ref) / m_y;
-
-        console.log(last_p_ref, global_p_min.toFixed(3), global_p_max.toFixed(3))
+        // const deltaX = (e.clientX / canvas.width - position_start.x) / last_m_x;
+        // m_x = Math.pow(3, deltaX);
+        // global_t_min = last_t_ref + (last_global_t_min - last_t_ref ) / m_x;
+        // global_t_max = last_t_ref + (last_global_t_max - last_t_ref) / m_x;
+        // console.log(last_t_ref, global_t_min.toFixed(3), global_t_max.toFixed(3))
 
         initCanvas(ctx);
-        renderChart(dataGlobal);
+        renderChart(state.data);
+    } else if (isOnYAxis(e) || state.isZoomingY) {
+        const deltaY = (1 - e.clientY / canvas.height - state.init_position.y) / prevState.m_y;
+        const m_y = Math.pow(3, deltaY);
+        setState({ 
+            m_y: m_y,
+            p_min: prevState.p_ref + (prevState.p_min - prevState.p_ref) / m_y,
+            p_max: prevState.p_ref + (prevState.p_max - prevState.p_ref) / m_y
+        });
+        console.log("Prev : ", prevState.p_min, prevState.p_max, prevState.p_ref)
+        console.log("State : ", state.p_min, state.p_max, state.p_ref)
+
+        // const deltaY = (1 - e.clientY / canvas.height - position_start.y) / last_m_y;
+        // m_y = Math.pow(3, deltaY);
+        // global_p_min = last_p_ref + (last_global_p_min - last_p_ref ) / m_y;
+        // global_p_max = last_p_ref + (last_global_p_max - last_p_ref) / m_y;
+        // console.log(last_p_ref, global_p_min.toFixed(3), global_p_max.toFixed(3))
+
+        initCanvas(ctx);
+        renderChart(state.data);
     } else {
-        const deltaX = (e.clientX / canvas.width - position_start.x) / m_x;
-        const deltaY = (1 - e.clientY / canvas.height - position_start.y) / m_y;
+        const deltaX = (e.clientX / canvas.width - state.init_position.x) / state.m_x;
+        const deltaY = (1 - e.clientY / canvas.height - state.init_position.y) / state.m_y;
+        // const deltaX = (e.clientX / canvas.width - position_start.x) / m_x;
+        // const deltaY = (1 - e.clientY / canvas.height - position_start.y) / m_y;
 
-        const new_global_t_min = global_t_min - deltaX * (global_t_max - global_t_min);
-        const new_global_t_max = global_t_max - deltaX * (global_t_max - global_t_min);
-        const new_global_p_min = global_p_min - deltaY * (global_p_max - global_p_min);
-        const new_global_p_max = global_p_max - deltaY * (global_p_max - global_p_min);
+        setState({
+            t_min: state.t_min - deltaX * (state.t_max - state.t_min),
+            t_max: state.t_max - deltaX * (state.t_max - state.t_min),
+            p_min: state.p_min - deltaY * (state.p_max - state.p_min),
+            p_max: state.p_max - deltaY * (state.p_max - state.p_min)
+        })
 
-        global_t_min = new_global_t_min;
-        global_t_max = new_global_t_max;
-        global_p_min = new_global_p_min;
-        global_p_max = new_global_p_max;
+        // const new_global_t_min = global_t_min - deltaX * (global_t_max - global_t_min);
+        // const new_global_t_max = global_t_max - deltaX * (global_t_max - global_t_min);
+        // const new_global_p_min = global_p_min - deltaY * (global_p_max - global_p_min);
+        // const new_global_p_max = global_p_max - deltaY * (global_p_max - global_p_min);
+
+        // global_t_min = new_global_t_min;
+        // global_t_max = new_global_t_max;
+        // global_p_min = new_global_p_min;
+        // global_p_max = new_global_p_max;
+
         initCanvas(ctx);
-        renderChart(dataGlobal); // REDraw
-        position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
+        renderChart(state.data); // REDraw
+
+        setState({ init_position: {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height} });
+        // position_start = {x: e.clientX / canvas.width, y: 1 - e.clientY / canvas.height};
     }
 });
 
 canvas.addEventListener("mouseup", () => {
-    isDragging = false
-    isPanning  = false
-    isZoomingX = false
-    isZoomingY = false
-
-    last_m_y = m_y;
+    setState({ isDragging: false, isPanning: false, isZoomingX: false, isZoomingY: false });
+    setPrevState({ m_x: state.m_x, m_y: state.m_y });
+    // isDragging = false
+    // isPanning  = false
+    // isZoomingX = false
+    // isZoomingY = false
+    // last_m_y = m_y;
 });
 canvas.addEventListener("mouseleave", () => {
-    isDragging = false
-    isPanning  = false
-    isZoomingX = false
-    isZoomingY = false
-    last_m_y = m_y;
+    setState({ isDragging: false, isPanning: false, isZoomingX: false, isZoomingY: false });
+    setPrevState({ m_x: state.m_x, m_y: state.m_y });
+    // isDragging = false
+    // isPanning  = false
+    // isZoomingX = false
+    // isZoomingY = false
+    // last_m_y = m_y;
 });
 
 function onDataFetched(data: FootprintCandle[]) {
     const nCandles = Math.floor(0.75 * canvas.width / (INIT_BAR_DIST));
     const tLast = new Date(data.at(-1)?.t ?? 0).getTime();
-
-    const data_visible = data.slice(data.length - nCandles)
-    
-    global_t_max = tLast + (MAX_INIT_BARS - nCandles) * 60 * 1000;
-    global_t_min = tLast - nCandles * 60 * 1000;
+    const data_visible = data.slice(data.length - nCandles);
 
     const p_min = Math.min(...data_visible.map(c => c.low));
     const p_max = Math.max(...data_visible.map(c => c.high));
 
-    global_p_min = Math.floor((p_min - 0.2  * (p_max - p_min)) / 10) * 10;
-    global_p_max = Math.ceil((p_max + 0.2  * (p_max - p_min)) / 10) * 10;
+    setState({ 
+        t_min: tLast - nCandles * 60 * 1000,
+        t_max: tLast + (MAX_INIT_BARS - nCandles) * 60 * 1000,
 
-    dataGlobal = data;
+        p_min: Math.floor((p_min - 0.2  * (p_max - p_min)) / 10) * 10,
+        p_max: Math.ceil((p_max + 0.2  * (p_max - p_min)) / 10) * 10,
+
+        data: data
+    });
+    // global_t_max = tLast + (MAX_INIT_BARS - nCandles) * 60 * 1000;
+    // global_t_min = tLast - nCandles * 60 * 1000;
+    // global_p_min = Math.floor((p_min - 0.2  * (p_max - p_min)) / 10) * 10;
+    // global_p_max = Math.ceil((p_max + 0.2  * (p_max - p_min)) / 10) * 10;
+    // dataGlobal = data;
+
     renderChart(data);
 }
 
@@ -186,10 +288,10 @@ function renderChart(data: FootprintCandle[]) {
         ctx.fillStyle = candle.close >= candle.open ? GREEN : RED;
         ctx.strokeStyle = candle.close >= candle.open ? GREEN : RED;
         const t = (new Date(candle.t)).getTime();
-        const r_open = transform(t, candle.open, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
-        const r_high = transform(t, candle.high, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
-        const r_low = transform(t, candle.low, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
-        const r_close = transform(t, candle.close, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+        const r_open = transform(t, candle.open, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
+        const r_high = transform(t, candle.high, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
+        const r_low = transform(t, candle.low, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
+        const r_close = transform(t, candle.close, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
         
         const barTop = Math.min(r_open.y, r_close.y), barHeight = Math.abs(r_open.y - r_close.y);
         ctx.fillRect(r_open.x - CANDLE_WIDTH / 2, barTop, CANDLE_WIDTH, barHeight);
@@ -200,7 +302,7 @@ function renderChart(data: FootprintCandle[]) {
         candle.footprint.forEach(f => {
             const maxVolSeller = Math.max(...candle.footprint.map(f => f.taker_seller));
             const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
-            const r_level = transform(t, f.price_level, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+            const r_level = transform(t, f.price_level, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
 
             const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
             const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
@@ -230,8 +332,8 @@ function renderChart(data: FootprintCandle[]) {
 
     ////////////////////////////////////////////////////////////////////////
 
-    ctx.fillText(m_x.toFixed(3), 1200, 200)
-    ctx.fillText(m_y.toFixed(3), 1200, 220)
+    ctx.fillText(state.m_x.toFixed(3), 1200, 200)
+    ctx.fillText(state.m_y.toFixed(3), 1200, 220)
 
     ctx.fillStyle = MAIN_BG;
     ctx.fillRect(canvas.width - (Y_AXIS_WIDTH), 0, Y_AXIS_WIDTH, canvas.height)
@@ -244,10 +346,10 @@ function renderChart(data: FootprintCandle[]) {
     ctx.textBaseline = "middle";
     ctx.font = "12px Arial";
 
-    const y_ticks = linspaceDivisible(global_p_min, global_p_max, 20);
+    const y_ticks = linspaceDivisible(state.p_min, state.p_max, 20);
 
     y_ticks.forEach((p, i) => {
-        const r = transform(0, p, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+        const r = transform(0, p, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
         ctx.fillText(p.toString(), canvas.width - (Y_AXIS_WIDTH - MARGIN), r.y);
         drawLine(ctx, 0, r.y, canvas.width - Y_AXIS_WIDTH, r.y);
     });
@@ -277,10 +379,10 @@ function renderChart(data: FootprintCandle[]) {
     //     ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
     // });
 
-    const x_ticks = linspaceDivisible(global_t_min, global_t_max, 60 * 1000);
+    const x_ticks = linspaceDivisible(state.t_min, state.t_max, 60 * 1000);
 
     x_ticks.forEach((t, i) => {
-        const r = transform(new Date(t).getTime(), 0, global_t_min, global_t_max, global_p_min, global_p_max, canvas.width, canvas.height);
+        const r = transform(new Date(t).getTime(), 0, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height);
         drawLine(ctx, r.x, 0, r.x, canvas.height - X_AXIS_WIDTH);
         const label = new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
@@ -296,11 +398,10 @@ function renderChart(data: FootprintCandle[]) {
     drawLine(ctx, 0, canvas.height - X_AXIS_WIDTH, canvas.width, canvas.height - X_AXIS_WIDTH);
     drawLine(ctx, canvas.width - Y_AXIS_WIDTH, 0, canvas.width - Y_AXIS_WIDTH, canvas.height);
 
-    
 }
 
 function transform(t: number, p: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number) {
-    return {x: m_x * (t - t_min) / (t_max - t_min) * W, y: H * (1 - m_y * (p - p_min) / (p_max - p_min))}
+    return {x: state.m_x * (t - t_min) / (t_max - t_min) * W, y: H * (1 - state.m_y * (p - p_min) / (p_max - p_min))}
 }
 
 function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
@@ -322,10 +423,13 @@ function smoothAlphaRange(x: number): number {
 }
 
 function initCanvas(ctx: CanvasRenderingContext2D) {
-    m_x = 1;
-    m_y = 1;
-    last_m_x = m_x;
-    last_m_y = m_y;
+    setState({ m_x: 1, m_y: 1});
+    setPrevState({ m_x: 1, m_y: 1});
+    // m_x = 1;
+    // m_y = 1;
+    // last_m_x = m_x;
+    // last_m_y = m_y;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = MAIN_BG; // or any color
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -341,10 +445,10 @@ function isOnYAxis(e: MouseEvent) {
 }
 
 
-function linspace(min: number, max: number, n:number, digits: number) {
-    const step = (max - min) / (n + 1);
-    return Array.from({ length: n }, (_, i) => +(min + i * step).toFixed(digits));
-}
+// function linspace(min: number, max: number, n:number, digits: number) {
+//     const step = (max - min) / (n + 1);
+//     return Array.from({ length: n }, (_, i) => +(min + i * step).toFixed(digits));
+// }
 
 function linspaceDivisible(min: number, max: number, step: number) {
     const start = Math.ceil(min / step) * step;
