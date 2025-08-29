@@ -1,6 +1,6 @@
 import { CanvasState, FootprintCandle, PriceLevel } from "./types";
 import { setState, setPrevState, INIT_STATE } from "./state";
-import { drawLine, linspaceDivisible, smoothAlphaRange, transform } from "./utils";
+import { drawLine, linspaceDivisible, round, smoothAlphaRange, transform, getClosestTickSize, getNextTickSize } from "./utils";
 
 import { MAIN_BG, GREEN, RED, FADED_GRAY, MARGIN, X_AXIS_WIDTH, Y_AXIS_WIDTH, MAX_INIT_BARS, CANDLE_WIDTH, WIDTH_VOL_LEVEL } from "./constants";
 
@@ -12,6 +12,9 @@ canvas.height = window.innerHeight;
 
 const VOL_BAR_HEIGHT = 10;
 
+const MIN_TICK_Y = 16;
+const INIT_TICK_Y = 20;
+const MAX_TICK_Y = 25;
 
 
 let state: CanvasState = { ...INIT_STATE };
@@ -77,6 +80,10 @@ canvas.addEventListener("mousemove", e => {
             p_min: prevState.p_ref + (prevState.p_min - prevState.p_ref) / m_y,
             p_max: prevState.p_ref + (prevState.p_max - prevState.p_ref) / m_y
         });
+        
+        const tickSizeOptions = getClosestTickSize((state.p_max - state.p_min) / INIT_TICK_Y);
+        const tickSize = (state.p_max - state.p_min) / tickSizeOptions.lower >= (state.p_max - state.p_min) / tickSizeOptions.upper ? tickSizeOptions.upper : tickSizeOptions.lower;
+        state = setState(state, { tick_y: tickSize });
 
         initCanvas(ctx);
         renderChart(state.data);
@@ -121,7 +128,7 @@ function initCanvas(ctx: CanvasRenderingContext2D) {
 
 
 function renderChart(data: FootprintCandle[]) {
-    const y_ticks = linspaceDivisible(state.p_min, state.p_max, 20);
+    const y_ticks = linspaceDivisible(state.p_min, state.p_max, state.tick_y);
     const x_ticks = linspaceDivisible(state.t_min, state.t_max, 60 * 1000);
 
     const rOrigin = transform(0, 0, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
@@ -233,12 +240,21 @@ function onDataFetched(data: FootprintCandle[]) {
     const p_min = Math.min(...data_visible.map(c => c.low));
     const p_max = Math.max(...data_visible.map(c => c.high));
 
+
+    const tickSizeOptions = getClosestTickSize((p_max - p_min) / INIT_TICK_Y);
+
+    const tickSize = (p_max - p_min) / tickSizeOptions.lower >= (p_max - p_min) / tickSizeOptions.upper ? tickSizeOptions.upper : tickSizeOptions.lower;
+
+    // const decimal_y = Math.floor(Math.log10(p_max - p_min)) - 1;
+
     state = setState(state, { 
         t_min: tLast - nCandles * 60 * 1000,
         t_max: tLast + (MAX_INIT_BARS - nCandles) * 60 * 1000,
 
-        p_min: Math.floor((p_min - 0.2  * (p_max - p_min)) / 10) * 10,
-        p_max: Math.ceil((p_max + 0.2  * (p_max - p_min)) / 10) * 10,
+        p_min: round(p_min - 0.2 * (p_max - p_min), -1),
+        p_max: round(p_max + 0.2 * (p_max - p_min), -1),
+        
+        tick_y: tickSize,
 
         data: data
     });

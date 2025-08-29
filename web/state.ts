@@ -21,6 +21,10 @@ export const INIT_STATE: CanvasState = {
 
     m_x: 1,
     m_y: 1,
+    tick_x: 0,
+    tick_y: 0,
+    decimal_x: 0,
+    decimal_y: 0,
 
     data      : []
 }

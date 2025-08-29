@@ -35,6 +35,10 @@ export type CanvasState = {
 
     m_x          : number,
     m_y          : number,
+    tick_x       : number,
+    tick_y       : number,
+    decimal_x    : number,
+    decimal_y    : number,
 
     data         : FootprintCandle[]
 };
