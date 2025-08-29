@@ -22,7 +22,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-28_16:09:00&end=2025-08-28_18:15:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_08:09:00&end=2025-08-25_16:20:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -159,32 +159,32 @@ function renderChart(data: FootprintCandle[]) {
                 const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
                 const r_level = transform(t, f.price_level, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
 
-                const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
-                const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
+                if (r_level.x >= -0.1 * canvas.width && r_level.y >= -0.1 * canvas.height ) {
+                    const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
+                    const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
 
-                ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`; 
-                ctx.fillRect(
-                    r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - candleWidth / 2, 
-                    r_level.y - VOL_BAR_HEIGHT / 2, 
-                    f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
+                    ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`; 
+                    ctx.fillRect(
+                        r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - candleWidth / 2, 
+                        r_level.y - VOL_BAR_HEIGHT / 2, 
+                        f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
 
-                ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
-                ctx.fillRect(
-                    r_level.x + candleWidth / 2, 
-                    r_level.y - VOL_BAR_HEIGHT / 2, 
-                    f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
-                
-                ctx.font = "10px Arial";
-                ctx.textBaseline = "middle";
-                ctx.fillStyle = 'rgb(255, 255, 255)';
-                ctx.textAlign = 'right';
-                ctx.fillText(f.taker_seller.toString(), r_level.x - (candleWidth / 2 + 5), r_level.y);
-                ctx.textAlign = 'left';
-                ctx.fillText(f.taker_buyer.toString(), r_level.x + (candleWidth / 2 + 5), r_level.y);
-
+                    ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
+                    ctx.fillRect(
+                        r_level.x + candleWidth / 2, 
+                        r_level.y - VOL_BAR_HEIGHT / 2, 
+                        f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
+                    
+                    ctx.font = "10px Arial";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = 'rgb(255, 255, 255)';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(f.taker_seller.toString(), r_level.x - (candleWidth / 2 + 5), r_level.y);
+                    ctx.textAlign = 'left';
+                    ctx.fillText(f.taker_buyer.toString(), r_level.x + (candleWidth / 2 + 5), r_level.y);
+                }
             });
         }
-        
     });
 
     ////////////////////////////////////////////////////////////////////////
@@ -240,12 +240,9 @@ function onDataFetched(data: FootprintCandle[]) {
     const p_min = Math.min(...data_visible.map(c => c.low));
     const p_max = Math.max(...data_visible.map(c => c.high));
 
-
     const tickSizeOptions = getClosestTickSize((p_max - p_min) / INIT_TICK_Y);
 
     const tickSize = (p_max - p_min) / tickSizeOptions.lower >= (p_max - p_min) / tickSizeOptions.upper ? tickSizeOptions.upper : tickSizeOptions.lower;
-
-    // const decimal_y = Math.floor(Math.log10(p_max - p_min)) - 1;
 
     state = setState(state, { 
         t_min: tLast - nCandles * 60 * 1000,
