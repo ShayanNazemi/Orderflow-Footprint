@@ -1,6 +1,6 @@
 import { CanvasState, FootprintCandle, PriceLevel } from "./types";
 import { setState, setPrevState, INIT_STATE } from "./state";
-import { drawLine, linspaceDivisible, round, smoothAlphaRange, transform, getClosestTickSize, getNextTickSize } from "./utils";
+import { drawLine, linspaceDivisible, round, smoothAlphaRange, transform, getClosestTickSize, getClosestTimeInterval } from "./utils";
 
 import { MAIN_BG, GREEN, RED, FADED_GRAY, MARGIN, X_AXIS_WIDTH, Y_AXIS_WIDTH, MAX_INIT_BARS, CANDLE_WIDTH, WIDTH_VOL_LEVEL } from "./constants";
 
@@ -12,9 +12,8 @@ canvas.height = window.innerHeight;
 
 const VOL_BAR_HEIGHT = 10;
 
-const MIN_TICK_Y = 16;
+const INIT_TICK_X = 20;
 const INIT_TICK_Y = 20;
-const MAX_TICK_Y = 25;
 
 
 let state: CanvasState = { ...INIT_STATE };
@@ -22,7 +21,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_08:09:00&end=2025-08-25_16:20:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-21_22:09:00&end=2025-08-25_16:38:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -70,6 +69,9 @@ canvas.addEventListener("mousemove", e => {
             t_max: prevState.t_ref + (prevState.t_max - prevState.t_ref) / m_x
         });
 
+        const intervalSize = getClosestTimeInterval((state.t_max - state.t_min) / INIT_TICK_X);
+        state = setState(state, { tick_x: intervalSize });
+
         initCanvas(ctx);
         renderChart(state.data);
     } else if (isOnYAxis(e) || state.isZoomingY) {
@@ -81,8 +83,7 @@ canvas.addEventListener("mousemove", e => {
             p_max: prevState.p_ref + (prevState.p_max - prevState.p_ref) / m_y
         });
         
-        const tickSizeOptions = getClosestTickSize((state.p_max - state.p_min) / INIT_TICK_Y);
-        const tickSize = (state.p_max - state.p_min) / tickSizeOptions.lower >= (state.p_max - state.p_min) / tickSizeOptions.upper ? tickSizeOptions.upper : tickSizeOptions.lower;
+        const tickSize = getClosestTickSize((state.p_max - state.p_min) / INIT_TICK_Y);
         state = setState(state, { tick_y: tickSize });
 
         initCanvas(ctx);
@@ -128,8 +129,10 @@ function initCanvas(ctx: CanvasRenderingContext2D) {
 
 
 function renderChart(data: FootprintCandle[]) {
+    const x_ticks = linspaceDivisible(state.t_min, state.t_max, state.tick_x);
     const y_ticks = linspaceDivisible(state.p_min, state.p_max, state.tick_y);
-    const x_ticks = linspaceDivisible(state.t_min, state.t_max, 60 * 1000);
+
+    console.log(x_ticks.length)
 
     const rOrigin = transform(0, 0, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
     const rPT = transform(60 * 1000, 20, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
@@ -217,7 +220,10 @@ function renderChart(data: FootprintCandle[]) {
     x_ticks.forEach((t, i) => {
         const r = transform(new Date(t).getTime(), 0, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
         drawLine(ctx, r.x, 0, r.x, canvas.height - X_AXIS_WIDTH);
-        const label = new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        // const label = new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const label = (t % 86400000 === 0)
+            ? new Date(t).toLocaleString([], { month: "2-digit", day: "2-digit"})
+            : new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
     });
 
@@ -237,20 +243,23 @@ function onDataFetched(data: FootprintCandle[]) {
     const tLast = new Date(data.at(-1)?.t ?? 0).getTime();
     const data_visible = data.slice(data.length - nCandles);
 
+    const t_min = tLast - nCandles * 60 * 1000;
+    const t_max = tLast + (INIT_TICK_X - nCandles) * 60 * 1000;
+
     const p_min = Math.min(...data_visible.map(c => c.low));
     const p_max = Math.max(...data_visible.map(c => c.high));
 
-    const tickSizeOptions = getClosestTickSize((p_max - p_min) / INIT_TICK_Y);
-
-    const tickSize = (p_max - p_min) / tickSizeOptions.lower >= (p_max - p_min) / tickSizeOptions.upper ? tickSizeOptions.upper : tickSizeOptions.lower;
+    const intervalsize = getClosestTimeInterval((t_max - t_min) / INIT_TICK_X)
+    const tickSize = getClosestTickSize((p_max - p_min) / INIT_TICK_Y);
 
     state = setState(state, { 
-        t_min: tLast - nCandles * 60 * 1000,
-        t_max: tLast + (MAX_INIT_BARS - nCandles) * 60 * 1000,
+        t_min: t_min,
+        t_max: t_max,
 
         p_min: round(p_min - 0.2 * (p_max - p_min), -1),
         p_max: round(p_max + 0.2 * (p_max - p_min), -1),
         
+        tick_x: intervalsize,
         tick_y: tickSize,
 
         data: data

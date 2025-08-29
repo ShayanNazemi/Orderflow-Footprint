@@ -51,41 +51,42 @@ function neighbors(x: number, A: number[]) {
 
 export function getClosestTickSize(x: number) {
     if (x <= 0) throw new Error("x must be positive");
-
     const lessThanOne = [1, 2, 5];
     const largerThanOne = [1, 2, 2.5, 4, 5];
     const decimal = Math.floor(Math.log10(x));
-
     const baseSize = x / Math.pow(10, decimal);
-
-    const values = neighbors(baseSize, x < 1 ? lessThanOne: largerThanOne);
-    return {lower: values.lower! * Math.pow(10, decimal), upper: values.upper * Math.pow(10, decimal)} 
+    return neighbors(baseSize, x < 1 ? lessThanOne: largerThanOne).upper * Math.pow(10, decimal)
 
 } 
 
-export function getNextTickSize(size: number) {
-    if (size <= 0) throw new Error("Size must be positive");
-
-    const lessThanOne = [1, 2, 5];
-    const largerThanOne = [1, 2, 2.5, 4, 5];
-    const decimal = Math.floor(Math.log10(size));
-
-    const baseSize = size / Math.pow(10, decimal);
-    let index;
-    if (size < 1) {
-        if (lessThanOne.includes(baseSize)) {
-            index = lessThanOne.indexOf(baseSize);
-            return index == lessThanOne.length - 1 ? lessThanOne[0]! * Math.pow(10, decimal + 1) : lessThanOne[index + 1]! * Math.pow(10, decimal);
-        } else return undefined
-    } else {
-        if (largerThanOne.includes(baseSize)) {
-            index = largerThanOne.indexOf(baseSize);
-            return index == largerThanOne.length - 1 ? largerThanOne[0]! * Math.pow(10, decimal + 1) : largerThanOne[index + 1]! * Math.pow(10, decimal);
-        } else return undefined;
+export function getClosestTimeInterval(x: number): number {
+    if (x <= 0) throw new Error("x must be positive");
+    const arrayMin = [ 1, 2, 5, 10, 15, 30, 60, 120, 240, 360, 720, 1440, 7 * 1440 ];
+    const arrayMilliSec = arrayMin.map(x => x * 60 * 1000);
+    if (x >= arrayMilliSec.at(-1)!) {
+        return neighbors(x, arrayMilliSec).lower!;
     }
+    return neighbors(x, arrayMilliSec).upper;
 }
 
+// export function getNextTickSize(size: number) {
+//     if (size <= 0) throw new Error("Size must be positive");
 
-export function getPriceTickSize(priceRange: number) {
+//     const lessThanOne = [1, 2, 5];
+//     const largerThanOne = [1, 2, 2.5, 4, 5];
+//     const decimal = Math.floor(Math.log10(size));
 
-}
+//     const baseSize = size / Math.pow(10, decimal);
+//     let index;
+//     if (size < 1) {
+//         if (lessThanOne.includes(baseSize)) {
+//             index = lessThanOne.indexOf(baseSize);
+//             return index == lessThanOne.length - 1 ? lessThanOne[0]! * Math.pow(10, decimal + 1) : lessThanOne[index + 1]! * Math.pow(10, decimal);
+//         } else return undefined
+//     } else {
+//         if (largerThanOne.includes(baseSize)) {
+//             index = largerThanOne.indexOf(baseSize);
+//             return index == largerThanOne.length - 1 ? largerThanOne[0]! * Math.pow(10, decimal + 1) : largerThanOne[index + 1]! * Math.pow(10, decimal);
+//         } else return undefined;
+//     }
+// }
