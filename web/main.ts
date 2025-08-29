@@ -21,7 +21,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_15:09:00&end=2025-08-25_16:38:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_16:20:00&end=2025-08-25_17:31:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -156,35 +156,60 @@ function renderChart(data: FootprintCandle[]) {
         drawLine(ctx, r_low.x, barTop + barHeight, r_low.x, r_low.y)
 
 
-        if ((gridDimension.x >= 2 * WIDTH_VOL_LEVEL) && (gridDimension.y >= 2 * VOL_BAR_HEIGHT)) {
+        if ((gridDimension.x >=  1.5 * WIDTH_VOL_LEVEL) && (gridDimension.y >= 1.5 * VOL_BAR_HEIGHT)) {
+            const maxVolSeller = Math.max(...candle.footprint.map(f => f.taker_seller));
+            const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
+            const maxTotalVol = Math.max(...candle.footprint.map(f => f.taker_buyer + f.taker_seller));
+            const totalVolume = candle.footprint.reduce((accumulator, level) => accumulator + level.taker_buyer + level.taker_seller, 0)
+
             candle.footprint.forEach(f => {
-                const maxVolSeller = Math.max(...candle.footprint.map(f => f.taker_seller));
-                const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
                 const r_level = transform(t, f.price_level, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
-
                 if (r_level.x >= -0.1 * canvas.width && r_level.y >= -0.1 * canvas.height ) {
-                    const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
-                    const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
+                    if (state.mode === 'bid/ask') {
+                        const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
+                        const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
 
-                    ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`; 
-                    ctx.fillRect(
-                        r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - candleWidth / 2, 
-                        r_level.y - VOL_BAR_HEIGHT / 2, 
-                        f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
+                        ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`; 
+                        ctx.fillRect(
+                            r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - candleWidth / 2, 
+                            r_level.y - VOL_BAR_HEIGHT / 2, 
+                            f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
 
-                    ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
-                    ctx.fillRect(
-                        r_level.x + candleWidth / 2, 
-                        r_level.y - VOL_BAR_HEIGHT / 2, 
-                        f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
-                    
-                    ctx.font = "10px Arial";
-                    ctx.textBaseline = "middle";
-                    ctx.fillStyle = 'rgb(255, 255, 255)';
-                    ctx.textAlign = 'right';
-                    ctx.fillText(f.taker_seller.toString(), r_level.x - (candleWidth / 2 + 5), r_level.y);
-                    ctx.textAlign = 'left';
-                    ctx.fillText(f.taker_buyer.toString(), r_level.x + (candleWidth / 2 + 5), r_level.y);
+                        ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
+                        ctx.fillRect(
+                            r_level.x + candleWidth / 2, 
+                            r_level.y - VOL_BAR_HEIGHT / 2, 
+                            f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
+                        
+                        ctx.font = "10px Arial";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = 'rgb(255, 255, 255)';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(f.taker_seller.toString(), r_level.x - (candleWidth / 2 + 5), r_level.y);
+                        ctx.textAlign = 'left';
+                        ctx.fillText(f.taker_buyer.toString(), r_level.x + (candleWidth / 2 + 5), r_level.y);
+                    } else {
+
+                        const volume = f.taker_buyer + f.taker_seller;
+                        const delta = f.taker_buyer - f.taker_seller;
+
+                        const alphaVolume = smoothAlphaRange(volume / totalVolume);
+
+                        ctx.fillStyle = `rgb(28, 110, 164)`; 
+                        ctx.fillRect(
+                            r_level.x - volume / maxTotalVol * WIDTH_VOL_LEVEL - candleWidth / 2, 
+                            r_level.y - VOL_BAR_HEIGHT / 2, 
+                            volume /maxTotalVol * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
+
+                        ctx.font = "10px Arial";
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = 'rgb(255, 255, 255)';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(volume.toFixed(1), r_level.x - (candleWidth / 2 + 5), r_level.y);
+                        ctx.textAlign = 'left';
+                        ctx.fillStyle = delta > 0 ? GREEN : RED;
+                        ctx.fillText(delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1), r_level.x + (candleWidth / 2 + 5), r_level.y);
+                    }
                 }
             });
         }
@@ -264,7 +289,28 @@ function onDataFetched(data: FootprintCandle[]) {
 
         data: data
     });
-
     renderChart(data);
 }
 
+
+document.getElementById("reset")!.addEventListener("click", () => {
+    initCanvas(ctx);
+    onDataFetched(state.data);
+});
+
+function updateModeButton() {
+  const btn = document.getElementById("mode") as HTMLButtonElement;
+  btn.textContent = state.mode === 'vol/delta' 
+    ? "Mode: Vol/Delta" 
+    : "Mode: Bid/Ask";
+}
+
+updateModeButton();
+
+const btn = document.getElementById("mode") as HTMLButtonElement;
+btn.addEventListener("click", () => {
+    state = setState(state, {mode: state.mode === 'vol/delta' ? 'bid/ask' : 'vol/delta'})
+    updateModeButton();
+    initCanvas(ctx);
+    renderChart(state.data);
+});

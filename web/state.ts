@@ -26,7 +26,8 @@ export const INIT_STATE: CanvasState = {
     decimal_x: 0,
     decimal_y: 0,
 
-    data      : []
+    data      : [],
+    mode : 'vol/delta',
 }
 
 

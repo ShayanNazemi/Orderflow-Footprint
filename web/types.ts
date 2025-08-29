@@ -40,5 +40,6 @@ export type CanvasState = {
     decimal_x    : number,
     decimal_y    : number,
 
-    data         : FootprintCandle[]
+    data         : FootprintCandle[],
+    mode         : 'vol/delta' | 'bid/ask'
 };
