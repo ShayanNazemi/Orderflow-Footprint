@@ -11,5 +11,5 @@ export const MARGIN          = 10;
 export const X_AXIS_WIDTH    = 40;
 export const Y_AXIS_WIDTH    = 80;
 export const MAX_INIT_BARS   = 15;
-export const CANDLE_WIDTH    = 10;
+export const CANDLE_WIDTH    = 8;
 export const WIDTH_VOL_LEVEL = 40;

@@ -10,13 +10,16 @@ const ctx = canvas.getContext('2d')!;
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+const VOL_BAR_HEIGHT = 10;
+
+
 
 let state: CanvasState = { ...INIT_STATE };
 let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_19:25:00&end=2025-08-25_19:50:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-28_16:09:00&end=2025-08-28_18:15:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -35,6 +38,7 @@ function isOnYAxis(e: MouseEvent) {
 
 canvas.addEventListener("dblclick", e => {
     initCanvas(ctx);
+
     onDataFetched(state.data);
 })
 
@@ -73,8 +77,6 @@ canvas.addEventListener("mousemove", e => {
             p_min: prevState.p_ref + (prevState.p_min - prevState.p_ref) / m_y,
             p_max: prevState.p_ref + (prevState.p_max - prevState.p_ref) / m_y
         });
-        console.log("Prev : ", prevState.p_min, prevState.p_max, prevState.p_ref)
-        console.log("State : ", state.p_min, state.p_max, state.p_ref)
 
         initCanvas(ctx);
         renderChart(state.data);
@@ -119,6 +121,16 @@ function initCanvas(ctx: CanvasRenderingContext2D) {
 
 
 function renderChart(data: FootprintCandle[]) {
+    const y_ticks = linspaceDivisible(state.p_min, state.p_max, 20);
+    const x_ticks = linspaceDivisible(state.t_min, state.t_max, 60 * 1000);
+
+    const rOrigin = transform(0, 0, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
+    const rPT = transform(60 * 1000, 20, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
+    const gridDimension = {x: Math.abs(rPT.x - rOrigin.x), y: Math.abs(rPT.y - rOrigin.y)};
+
+    const candleWidth = gridDimension.x >= CANDLE_WIDTH ? CANDLE_WIDTH : gridDimension.x
+    
+
     data.forEach((candle, i) => {
         ctx.fillStyle = candle.close >= candle.open ? GREEN : RED;
         ctx.strokeStyle = candle.close >= candle.open ? GREEN : RED;
@@ -128,41 +140,44 @@ function renderChart(data: FootprintCandle[]) {
         const r_low = transform(t, candle.low, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
         const r_close = transform(t, candle.close, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
         
-        const barTop = Math.min(r_open.y, r_close.y), barHeight = Math.abs(r_open.y - r_close.y);
-        ctx.fillRect(r_open.x - CANDLE_WIDTH / 2, barTop, CANDLE_WIDTH, barHeight);
+        const barTop = Math.min(r_open.y, r_close.y), barHeight = Math.max(Math.abs(r_open.y - r_close.y), 0.5);
+        ctx.fillRect(r_open.x - candleWidth / 2, barTop, candleWidth, barHeight);
         drawLine(ctx, r_high.x, barTop, r_high.x, r_high.y)
         drawLine(ctx, r_low.x, barTop + barHeight, r_low.x, r_low.y)
 
 
-        candle.footprint.forEach(f => {
-            const maxVolSeller = Math.max(...candle.footprint.map(f => f.taker_seller));
-            const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
-            const r_level = transform(t, f.price_level, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
+        if ((gridDimension.x >= 2 * WIDTH_VOL_LEVEL) && (gridDimension.y >= 2 * VOL_BAR_HEIGHT)) {
+            candle.footprint.forEach(f => {
+                const maxVolSeller = Math.max(...candle.footprint.map(f => f.taker_seller));
+                const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
+                const r_level = transform(t, f.price_level, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
 
-            const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
-            const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
-            
-            ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`;
-            ctx.fillRect(
-                r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - CANDLE_WIDTH / 2, 
-                r_level.y - 10, 
-                f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, 30);
+                const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
+                const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
 
-            ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
-            ctx.fillRect(
-                r_level.x + CANDLE_WIDTH / 2, 
-                r_level.y - 10, 
-                f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, 30);
+                ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`; 
+                ctx.fillRect(
+                    r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - candleWidth / 2, 
+                    r_level.y - VOL_BAR_HEIGHT / 2, 
+                    f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
 
+                ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
+                ctx.fillRect(
+                    r_level.x + candleWidth / 2, 
+                    r_level.y - VOL_BAR_HEIGHT / 2, 
+                    f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
+                
+                ctx.font = "10px Arial";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = 'rgb(255, 255, 255)';
+                ctx.textAlign = 'right';
+                ctx.fillText(f.taker_seller.toString(), r_level.x - (candleWidth / 2 + 5), r_level.y);
+                ctx.textAlign = 'left';
+                ctx.fillText(f.taker_buyer.toString(), r_level.x + (candleWidth / 2 + 5), r_level.y);
 
-            ctx.fillStyle = 'rgb(255, 255, 255)';
-            ctx.textAlign = 'right';
-            ctx.fillText(f.taker_seller.toString(), r_level.x - (CANDLE_WIDTH / 2 + 5), r_level.y);
-
-            ctx.textAlign = 'left';
-            ctx.fillText(f.taker_buyer.toString(), r_level.x + (CANDLE_WIDTH / 2 + 5), r_level.y);
-
-        });
+            });
+        }
+        
     });
 
     ////////////////////////////////////////////////////////////////////////
@@ -174,7 +189,7 @@ function renderChart(data: FootprintCandle[]) {
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.font = "12px Arial";
-    const y_ticks = linspaceDivisible(state.p_min, state.p_max, 20);
+
     y_ticks.forEach((p, i) => {
         const r = transform(0, p, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
         ctx.fillText(p.toString(), canvas.width - (Y_AXIS_WIDTH - MARGIN), r.y);
@@ -191,14 +206,14 @@ function renderChart(data: FootprintCandle[]) {
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.strokeStyle = FADED_GRAY;
-    const x_ticks = linspaceDivisible(state.t_min, state.t_max, 60 * 1000);
+    
     x_ticks.forEach((t, i) => {
         const r = transform(new Date(t).getTime(), 0, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
         drawLine(ctx, r.x, 0, r.x, canvas.height - X_AXIS_WIDTH);
         const label = new Date(t).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         ctx.fillText(label, r.x, canvas.height - (X_AXIS_WIDTH - MARGIN)); // 15px from bottom
     });
-    
+
     ////////////////////////////////////////////////////////////////////////
     // Bottom right corner of chart
     ctx.fillStyle = MAIN_BG;
@@ -227,6 +242,7 @@ function onDataFetched(data: FootprintCandle[]) {
 
         data: data
     });
+
     renderChart(data);
 }
 
