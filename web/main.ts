@@ -21,7 +21,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-21_22:09:00&end=2025-08-25_16:38:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_15:09:00&end=2025-08-25_16:38:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);

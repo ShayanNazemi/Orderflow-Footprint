@@ -1,0 +1,46 @@
+html, body { 
+    margin: 0;
+    height: 100%;
+    background: #0B192C;
+    font-family: 'Roboto', sans-serif;  /* 👈 Roboto everywhere */
+}
+
+canvas { 
+    display: fixed; width: 100%; height: 100%; 
+}
+
+#controls {
+    position: fixed;
+    display: flex;
+    color: white;
+    top: 0;
+    left: 0;
+    /* padding: 10px; */
+    background: #0B192C;
+    width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+h2 {
+    font-weight: 200;
+    display: inline-block;   /* bring back basic box layout */
+    padding: 12px 20px;
+    margin: 0px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+button {
+  all: unset;              /* 🔑 reset all default browser styles */
+  display: inline-block;   /* bring back basic box layout */
+  padding: 12px 12px;
+  cursor: pointer;
+  color: white;
+  background: transparent;
+  font-size: 14px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.2s ease;
+}
+
+button:hover {
+  background: #1E2B3E;
+}
