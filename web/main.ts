@@ -10,6 +10,11 @@ const ctx = canvas.getContext('2d')!;
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+const overlayCanvas = document.getElementById('overlay') as HTMLCanvasElement;
+const overlayCtx = overlayCanvas.getContext('2d')!;
+overlayCanvas.width = window.innerWidth;
+overlayCanvas.height = window.innerHeight;
+
 const VOL_BAR_HEIGHT = 10;
 
 const INIT_TICK_X = 20;
@@ -348,4 +353,17 @@ btn.addEventListener("click", () => {
     updateModeButton();
     initCanvas(ctx);
     renderChart(state.data);
+});
+
+canvas.addEventListener("mousemove", (e: MouseEvent) => {
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x >= 0 && x < canvas.width - Y_AXIS_WIDTH && y > 0 && y < canvas.height - X_AXIS_WIDTH) {
+        overlayCtx.clearRect(0, 0, canvas.width, canvas.height);
+        overlayCtx.fillStyle = "white";
+        overlayCtx.fillRect(x, y, 10, 10);
+    } else {
+        overlayCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
 });

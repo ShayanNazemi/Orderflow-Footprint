@@ -5,13 +5,27 @@ html, body {
     font-family: 'Roboto', sans-serif;  /* 👈 Roboto everywhere */
 }
 
-canvas { 
-    display: fixed; width: 100%; height: 100%; 
+canvas {
+    position: absolute;    /* stack canvases */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
+#chart {
+    z-index: 1;        /* bottom canvas */
+}
+
+#overlay {
+    z-index: 2;        /* top canvas for mouse/rect overlays */
+    pointer-events: none; /* allow mouse to pass through to chart if needed */
+}
 #controls {
     position: fixed;
+    z-index: 3;
     display: flex;
+    align-items: center;
     color: white;
     top: 0;
     left: 0;
@@ -19,6 +33,7 @@ canvas {
     background: #0B192C;
     width: 100%;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    height: 60px;
 }
 
 h2 {
