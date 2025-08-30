@@ -25,6 +25,8 @@ const VOL_PROFILE_HEIGHT = 30;
 const POINTER_HEIGHT = 30;
 const POINTER_WIDTH = 100;
 
+const HEADER_HEIGHT = 60;
+
 
 
 let state: CanvasState = { ...INIT_STATE };
@@ -32,7 +34,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-25_16:20:00&end=2025-08-25_17:31:00&bin=10')
+fetch('http://127.0.0.1:5000/api/orderflow?start=2025-08-29_00:00:00&end=2025-08-30_02:00:00&bin=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -407,6 +409,17 @@ canvas.addEventListener("mousemove", (e: MouseEvent) => {
         overlayCtx.textBaseline = "middle";
         overlayCtx.textAlign = "left";
         overlayCtx.fillText(z.p.toFixed(1), canvas.width - Y_AXIS_WIDTH + MARGIN, y);
+
+
+
+        const hoveredCandle = state.data.filter(x => (new Date(x.t)).getTime() == roundedT).at(0);
+        const diff = hoveredCandle && hoveredCandle.close - hoveredCandle.open;
+        const ohlcLabel = hoveredCandle ? `O : ${hoveredCandle.open}   H : ${hoveredCandle.high}   L : ${hoveredCandle.low}   C : ${hoveredCandle.close}   ${hoveredCandle.close > hoveredCandle.open ? `+${diff!.toFixed(1)}` : diff!.toFixed(1)} (${hoveredCandle.close > hoveredCandle.open ? `+${(diff! / hoveredCandle.open * 100).toFixed(2)}` : (diff! / hoveredCandle.open * 100).toFixed(2)}%)` : "O : NA   H : NA   L : NA   C : NA"
+        overlayCtx.font = "bold 12px Roboto";
+        overlayCtx.textBaseline = "top";
+        overlayCtx.fillStyle = hoveredCandle ? (hoveredCandle.close > hoveredCandle.open ? GREEN : RED) : "white"
+        overlayCtx.fillText(ohlcLabel, 2 * MARGIN, HEADER_HEIGHT + MARGIN)
+
     } else {
         overlayCtx.clearRect(0, 0, canvas.width, canvas.height);
     }

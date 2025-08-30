@@ -27,7 +27,7 @@ export const INIT_STATE: CanvasState = {
     decimalY: 0,
 
     data      : [],
-    mode : 'vol/delta',
+    mode : 'bid/ask',
 }
 
 
