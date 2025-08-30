@@ -5,6 +5,8 @@ export const GREEN           = "#16C47F";
 export const DARK_GREEN      = "#0D754C";
 export const RED             = "#FB4141";
 export const DARK_RED        = "#AF2D2D";
+
+export const LIGHT_GRAY      = "rgba(255, 255, 255, 0.5)";
 export const FADED_GRAY      = "rgba(255, 255, 255, 0.1)";
 
 

@@ -2,11 +2,25 @@ export function transform(t: number, p: number, t_min: number, t_max: number, p_
     return {x: m_x * (t - t_min) / (t_max - t_min) * W, y: H * (1 - m_y * (p - p_min) / (p_max - p_min))}
 }
 
+export function inverseTransform(x: number, y: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number, m_x: number, m_y: number) {
+    return {t: x * (t_max - t_min) / (W * m_x) + t_min , p: (p_max - p_min) / m_y * (1 - y / H) + p_min}
+}
+
+
 export function drawLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
+}
+
+export function drawDashedLine(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
+  ctx.beginPath();
+  ctx.setLineDash([5, 5]); // [dash length, gap length]
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.setLineDash([]); // reset to solid line
 }
 
 export function linspaceDivisible(min: number, max: number, step: number) {

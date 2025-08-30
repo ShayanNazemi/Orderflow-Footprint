@@ -1,8 +1,8 @@
 import { CanvasState, FootprintCandle, PriceLevel } from "./types";
 import { setState, setPrevState, INIT_STATE } from "./state";
-import { drawLine, linspaceDivisible, round, smoothAlphaRange, transform, getClosestTickSize, getClosestTimeInterval } from "./utils";
+import { drawLine, drawDashedLine, linspaceDivisible, round, smoothAlphaRange, transform, getClosestTickSize, getClosestTimeInterval, inverseTransform } from "./utils";
 
-import { BRIGHT_BG, MAIN_BG, GREEN, DARK_RED, RED, FADED_GRAY, MARGIN, X_AXIS_WIDTH, Y_AXIS_WIDTH, MAX_INIT_BARS, CANDLE_WIDTH, WIDTH_VOL_LEVEL, DARK_GREEN } from "./constants";
+import { BRIGHT_BG, MAIN_BG, GREEN, DARK_RED, RED, FADED_GRAY, MARGIN, X_AXIS_WIDTH, Y_AXIS_WIDTH, MAX_INIT_BARS, CANDLE_WIDTH, WIDTH_VOL_LEVEL, DARK_GREEN, LIGHT_GRAY } from "./constants";
 
 
 const canvas = document.getElementById('chart') as HTMLCanvasElement;
@@ -21,6 +21,10 @@ const INIT_TICK_X = 20;
 const INIT_TICK_Y = 20;
 
 const VOL_PROFILE_HEIGHT = 30;
+
+const POINTER_HEIGHT = 30;
+const POINTER_WIDTH = 100;
+
 
 
 let state: CanvasState = { ...INIT_STATE };
@@ -359,9 +363,30 @@ canvas.addEventListener("mousemove", (e: MouseEvent) => {
     const x = e.clientX;
     const y = e.clientY;
     if (x >= 0 && x < canvas.width - Y_AXIS_WIDTH && y > 0 && y < canvas.height - X_AXIS_WIDTH) {
+        const z = inverseTransform(x, y, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
+        const roundedT = Math.round(z.t / (60 * 1000)) * 60 * 1000;
+        const roundedR = transform(roundedT, z.p, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y)
+
         overlayCtx.clearRect(0, 0, canvas.width, canvas.height);
+        overlayCtx.strokeStyle = LIGHT_GRAY;
+        drawDashedLine(overlayCtx, roundedR.x, 0, roundedR.x, canvas.height - X_AXIS_WIDTH);
+        drawDashedLine(overlayCtx, 0, y, canvas.width - Y_AXIS_WIDTH, y);
+
+        overlayCtx.fillStyle = BRIGHT_BG;
+        overlayCtx.fillRect(roundedR.x - POINTER_WIDTH / 2, canvas.height - X_AXIS_WIDTH, POINTER_WIDTH, POINTER_HEIGHT);
+        overlayCtx.fillRect(canvas.width - Y_AXIS_WIDTH , y - POINTER_HEIGHT / 2, Y_AXIS_WIDTH, POINTER_HEIGHT);
+
+        const t = new Date(roundedT).toLocaleString([], { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+        overlayCtx.font = "12px Roboto";
         overlayCtx.fillStyle = "white";
-        overlayCtx.fillRect(x, y, 10, 10);
+
+        overlayCtx.textBaseline = "top";
+        overlayCtx.textAlign = "center";
+        overlayCtx.fillText(t, roundedR.x, canvas.height - X_AXIS_WIDTH + MARGIN);
+
+        overlayCtx.textBaseline = "middle";
+        overlayCtx.textAlign = "left";
+        overlayCtx.fillText(z.p.toFixed(1), canvas.width - Y_AXIS_WIDTH + MARGIN, y);
     } else {
         overlayCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
