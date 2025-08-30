@@ -6,7 +6,6 @@ from datetime import datetime
 from flask_cors import CORS
 from decimal import Decimal, ROUND_HALF_UP
 
-
 app = Flask(__name__)
 CORS(app)
 
@@ -19,7 +18,7 @@ async def fetch_footprints(start, end, bin_width=1.0):
         port=5432
     )
 
-    query = open("./server/db/orderflow_legacy.sql").read()  # or put the SQL inline
+    query = open("./server/db/aggtrade_to_footprint.sql").read()  # or put the SQL inline
     rows = await conn.fetch(query, start, end, bin_width)
     await conn.close()
 
@@ -36,7 +35,6 @@ async def fetch_footprints(start, end, bin_width=1.0):
             "footprint": json.loads(r["footprint"]) if isinstance(r["footprint"], str) else r["footprint"]
         })
     return result
-
 
 async def fetch_last_candle(start, end, symbol, bin_width = None, bin_count = None):
     conn = await asyncpg.connect(
@@ -76,7 +74,6 @@ async def fetch_last_candle(start, end, symbol, bin_width = None, bin_count = No
             "footprint": footprint
         })
     return result
-
 
 @app.route("/")
 def hello_world():
