@@ -1,9 +1,9 @@
-export function transform(t: number, p: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number, m_x: number, m_y: number) {
-    return {x: m_x * (t - t_min) / (t_max - t_min) * W, y: H * (1 - m_y * (p - p_min) / (p_max - p_min))}
+export function transform(t: number, p: number, tMin: number, tMax: number, pMin: number, pMax: number, W: number, H: number, mX: number, mY: number) {
+    return {x: mX * (t - tMin) / (tMax - tMin) * W, y: H * (1 - mY * (p - pMin) / (pMax - pMin))}
 }
 
-export function inverseTransform(x: number, y: number, t_min: number, t_max: number, p_min: number, p_max: number, W: number, H: number, m_x: number, m_y: number) {
-    return {t: x * (t_max - t_min) / (W * m_x) + t_min , p: (p_max - p_min) / m_y * (1 - y / H) + p_min}
+export function inverseTransform(x: number, y: number, tMin: number, tMax: number, pMin: number, pMax: number, W: number, H: number, mX: number, mY: number) {
+    return {t: x * (tMax - tMin) / (W * mX) + tMin , p: (pMax - pMin) / mY * (1 - y / H) + pMin}
 }
 
 
@@ -32,7 +32,7 @@ export function linspaceDivisible(min: number, max: number, step: number) {
 }
 
 export function smoothAlphaRange(x: number): number {
-    return 0.1 + (3*x*x - 2*x*x*x) * (0.8);
+    return 0.1 + 0.8 * Math.pow(x, 2) * (3  - 2 * x);
 }
 
 export function round(x: number, digits: number): number {
@@ -82,25 +82,3 @@ export function getClosestTimeInterval(x: number): number {
     }
     return neighbors(x, arrayMilliSec).upper;
 }
-
-// export function getNextTickSize(size: number) {
-//     if (size <= 0) throw new Error("Size must be positive");
-
-//     const lessThanOne = [1, 2, 5];
-//     const largerThanOne = [1, 2, 2.5, 4, 5];
-//     const decimal = Math.floor(Math.log10(size));
-
-//     const baseSize = size / Math.pow(10, decimal);
-//     let index;
-//     if (size < 1) {
-//         if (lessThanOne.includes(baseSize)) {
-//             index = lessThanOne.indexOf(baseSize);
-//             return index == lessThanOne.length - 1 ? lessThanOne[0]! * Math.pow(10, decimal + 1) : lessThanOne[index + 1]! * Math.pow(10, decimal);
-//         } else return undefined
-//     } else {
-//         if (largerThanOne.includes(baseSize)) {
-//             index = largerThanOne.indexOf(baseSize);
-//             return index == largerThanOne.length - 1 ? largerThanOne[0]! * Math.pow(10, decimal + 1) : largerThanOne[index + 1]! * Math.pow(10, decimal);
-//         } else return undefined;
-//     }
-// }

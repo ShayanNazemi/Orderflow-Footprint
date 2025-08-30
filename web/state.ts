@@ -6,25 +6,25 @@ export const INIT_STATE: CanvasState = {
     isPanning: false,
     isZoomingX: false,
     isZoomingY: false,
-    init_position: {
+    initPosition: {
         x: 0,
         y: 0
     },
 
-    t_min: 0,
-    t_max: 0,
-    t_ref: 0,
+    tMin: 0,
+    tMax: 0,
+    tRef: 0,
 
-    p_min: 0,
-    p_max: 0,
-    p_ref: 0,
+    pMin: 0,
+    pMax: 0,
+    pRef: 0,
 
-    m_x: 1,
-    m_y: 1,
-    tick_x: 0,
-    tick_y: 0,
-    decimal_x: 0,
-    decimal_y: 0,
+    mX: 1,
+    mY: 1,
+    tickX: 0,
+    tickY: 0,
+    decimalX: 0,
+    decimalY: 0,
 
     data      : [],
     mode : 'vol/delta',

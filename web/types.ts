@@ -20,25 +20,25 @@ export type CanvasState = {
     isZoomingX   : boolean,
     isZoomingY   : boolean,
     
-    init_position: {
+    initPosition: {
         x        : number,
         y        : number
     },
 
-    t_min        : number,
-    t_max        : number,
-    t_ref        : number,
+    tMin         : number,
+    tMax         : number,
+    tRef         : number,
 
-    p_min        : number,
-    p_max        : number,
-    p_ref        : number,
+    pMin         : number,
+    pMax         : number,
+    pRef         : number,
 
-    m_x          : number,
-    m_y          : number,
-    tick_x       : number,
-    tick_y       : number,
-    decimal_x    : number,
-    decimal_y    : number,
+    mX           : number,
+    mY           : number,
+    tickX        : number,
+    tickY        : number,
+    decimalX     : number,
+    decimalY     : number,
 
     data         : FootprintCandle[],
     mode         : 'vol/delta' | 'bid/ask'
