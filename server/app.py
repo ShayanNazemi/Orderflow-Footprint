@@ -19,7 +19,7 @@ async def fetch_footprints(start, end, bin_width=1.0):
         port=5432
     )
 
-    query = open("orderflow.sql").read()  # or put the SQL inline
+    query = open("./server/db/orderflow.sql").read()  # or put the SQL inline
     rows = await conn.fetch(query, start, end, bin_width)
     await conn.close()
 
@@ -96,7 +96,6 @@ async def fetch_last_candle():
 
 @app.route("/")
 def hello_world():
-    
     return "<p>Hello, World!</p>"
 
 @app.route("/api/orderflow", methods = ['GET'])
