@@ -19,7 +19,7 @@ async def fetch_footprints(start, end, bin_width=1.0):
         port=5432
     )
 
-    query = open("./server/db/orderflow.sql").read()  # or put the SQL inline
+    query = open("./server/db/orderflow_legacy.sql").read()  # or put the SQL inline
     rows = await conn.fetch(query, start, end, bin_width)
     await conn.close()
 
@@ -38,7 +38,7 @@ async def fetch_footprints(start, end, bin_width=1.0):
     return result
 
 
-async def fetch_last_candle():
+async def fetch_last_candle(start, end, symbol, bin_width = None, bin_count = None):
     conn = await asyncpg.connect(
         user="postgres",
         password="Asdf12345^&",
@@ -47,50 +47,34 @@ async def fetch_last_candle():
         port=5432
     )
 
-    # 1️⃣ get last candle
-    candle = await conn.fetchrow("""
-        SELECT *
-        FROM candles
-        ORDER BY bucket_time DESC
-        LIMIT 1
-    """)
-
-    if not candle:
-        await conn.close()
-        return None
-
-    bucket_time = candle["bucket_time"]
-    symbol = candle["symbol"]
-
-    # 2️⃣ get footprint rows for this candle
-    footprint_rows = await conn.fetch("""
-        SELECT price_level, taker_buyer, taker_seller
-        FROM footprints
-        WHERE bucket_time = $1 AND symbol = $2
-        ORDER BY price_level DESC
-    """, bucket_time, symbol)
-
-    footprint = [
-        {
-            "price_level": float(Decimal(r["price_level"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
-            "taker_buyer": float(Decimal(r["taker_buyer"]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
-            "taker_seller": float(Decimal(r["taker_seller"]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP))
-        }
-        for r in footprint_rows
-    ]
-
-    result = {
-        "t": bucket_time,
-        "symbol": symbol,
-        "open": float(Decimal(candle["open"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
-        "high": float(Decimal(candle["high"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
-        "low": float(Decimal(candle["low"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
-        "close": float(Decimal(candle["close"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
-        "volume": float(Decimal(candle["volume"]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
-        "footprint": footprint
-    }
-
+    if bin_width is not None:
+        query = open("./server/db/footprint_bin_width.sql").read()
+        rows = await conn.fetch(query, start, end, symbol, bin_width)
+    else:
+        query = open("./server/db/footprint_bin_count.sql").read()
+        rows = await conn.fetch(query, start, end, symbol, bin_count - 1)
     await conn.close()
+
+    result = []
+    for row in rows:
+        footprint = [
+            {
+                "price_level": float(Decimal(record["price_level"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
+                "taker_buyer": float(Decimal(record["taker_buyer"]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
+                "taker_seller": float(Decimal(record["taker_seller"]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP))
+            } 
+            for record in json.loads(row['footprint'])]
+
+        result.append({
+            "t": row['bucket_time'],
+            "symbol": symbol,
+            "open": float(Decimal(row["open"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
+            "high": float(Decimal(row["high"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
+            "low": float(Decimal(row["low"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
+            "close": float(Decimal(row["close"]).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)),
+            "volume": float(Decimal(row["volume"]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)),
+            "footprint": footprint
+        })
     return result
 
 
@@ -115,10 +99,26 @@ def get_orderflow():
         result = asyncio.run(fetch_footprints(start_obj, end_obj, bin_width=bin))
 
         return result
-    
 
-@app.route("/api/last_candle", methods = ['GET'])
+@app.route("/api/footprint", methods = ['GET'])
 def get_last_candle():
     if request.method == 'GET':
-        result = asyncio.run(fetch_last_candle())
-        return result
+        start = request.args.get("start")
+        end = request.args.get("end")
+        bin_width = request.args.get("bin_width")
+        bin_count = request.args.get("bin_count")
+
+        format_string = "%Y-%m-%d_%H:%M:%S"
+        start_obj = datetime.strptime(start, format_string)
+        end_obj = datetime.strptime(end, format_string)
+
+        if (start is None or end is None) or (bin_width is None and bin_count is None):
+            return []
+        
+        if bin_width is not None:
+            return asyncio.run(fetch_last_candle(start_obj, end_obj, symbol="BTCUSDT", bin_width=float(bin_width)))
+        if bin_count is not None:
+            return asyncio.run(fetch_last_candle(start_obj, end_obj, symbol="BTCUSDT", bin_count=float(bin_count)))
+    
+if __name__ == "__main__":
+    app.run(debug = True)
