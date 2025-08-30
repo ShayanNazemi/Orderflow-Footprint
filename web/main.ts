@@ -2,7 +2,7 @@ import { CanvasState, FootprintCandle, PriceLevel } from "./types";
 import { setState, setPrevState, INIT_STATE } from "./state";
 import { drawLine, linspaceDivisible, round, smoothAlphaRange, transform, getClosestTickSize, getClosestTimeInterval } from "./utils";
 
-import { MAIN_BG, GREEN, RED, FADED_GRAY, MARGIN, X_AXIS_WIDTH, Y_AXIS_WIDTH, MAX_INIT_BARS, CANDLE_WIDTH, WIDTH_VOL_LEVEL } from "./constants";
+import { BRIGHT_BG, MAIN_BG, GREEN, DARK_RED, RED, FADED_GRAY, MARGIN, X_AXIS_WIDTH, Y_AXIS_WIDTH, MAX_INIT_BARS, CANDLE_WIDTH, WIDTH_VOL_LEVEL, DARK_GREEN } from "./constants";
 
 
 const canvas = document.getElementById('chart') as HTMLCanvasElement;
@@ -14,6 +14,8 @@ const VOL_BAR_HEIGHT = 10;
 
 const INIT_TICK_X = 20;
 const INIT_TICK_Y = 20;
+
+const VOL_PROFILE_HEIGHT = 30;
 
 
 let state: CanvasState = { ...INIT_STATE };
@@ -159,8 +161,6 @@ function renderChart(data: FootprintCandle[]) {
             const maxVolSeller = Math.max(...candle.footprint.map(f => f.taker_seller));
             const maxVolBuyer = Math.max(...candle.footprint.map(f => f.taker_buyer));
             const maxTotalVol = Math.max(...candle.footprint.map(f => f.taker_buyer + f.taker_seller));
-            const totalVolume = candle.footprint.reduce((accumulator, level) => accumulator + level.taker_buyer + level.taker_seller, 0)
-
             candle.footprint.forEach(f => {
                 const r_level = transform(t, f.price_level, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
                 if (r_level.x >= -0.1 * canvas.width && r_level.y >= -0.1 * canvas.height ) {
@@ -168,31 +168,29 @@ function renderChart(data: FootprintCandle[]) {
                         const alphaSeller = smoothAlphaRange(f.taker_seller / maxVolSeller);
                         const alphaBuyer = smoothAlphaRange(f.taker_buyer / maxVolBuyer);
 
-                        ctx.fillStyle = `rgba(160, 40, 40, ${alphaSeller})`; 
+                        ctx.fillStyle = DARK_RED; //`rgba(160, 40, 40, ${alphaSeller})`; 
                         ctx.fillRect(
                             r_level.x - f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL - candleWidth / 2, 
                             r_level.y - VOL_BAR_HEIGHT / 2, 
                             f.taker_seller / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
 
-                        ctx.fillStyle = `rgba(15, 120, 80, ${alphaBuyer})`;
+                        ctx.fillStyle = DARK_GREEN;//`rgba(15, 120, 80, ${alphaBuyer})`;
                         ctx.fillRect(
                             r_level.x + candleWidth / 2, 
                             r_level.y - VOL_BAR_HEIGHT / 2, 
                             f.taker_buyer / (maxVolSeller + maxVolBuyer) * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
                         
-                        ctx.font = "10px Arial";
+                        ctx.font = "10px Roboto";
                         ctx.textBaseline = "middle";
                         ctx.fillStyle = 'rgb(255, 255, 255)';
                         ctx.textAlign = 'right';
-                        ctx.fillText(f.taker_seller.toString(), r_level.x - (candleWidth / 2 + 5), r_level.y);
+                        ctx.fillText(f.taker_seller.toFixed(2), r_level.x - (candleWidth / 2 + 5), r_level.y);
                         ctx.textAlign = 'left';
-                        ctx.fillText(f.taker_buyer.toString(), r_level.x + (candleWidth / 2 + 5), r_level.y);
+                        ctx.fillText(f.taker_buyer.toFixed(2), r_level.x + (candleWidth / 2 + 5), r_level.y);
                     } else {
 
                         const volume = f.taker_buyer + f.taker_seller;
                         const delta = f.taker_buyer - f.taker_seller;
-
-                        const alphaVolume = smoothAlphaRange(volume / totalVolume);
 
                         ctx.fillStyle = `rgb(28, 110, 164)`; 
                         ctx.fillRect(
@@ -200,7 +198,7 @@ function renderChart(data: FootprintCandle[]) {
                             r_level.y - VOL_BAR_HEIGHT / 2, 
                             volume /maxTotalVol * WIDTH_VOL_LEVEL, VOL_BAR_HEIGHT);
 
-                        ctx.font = "10px Arial";
+                        ctx.font = "10px Roboto";
                         ctx.textBaseline = "middle";
                         ctx.fillStyle = 'rgb(255, 255, 255)';
                         ctx.textAlign = 'right';
@@ -211,6 +209,28 @@ function renderChart(data: FootprintCandle[]) {
                     }
                 }
             });
+
+        }
+        if ((gridDimension.x >=  1.5 * WIDTH_VOL_LEVEL)) {
+            const totalVolume = candle.footprint.reduce((accumulator, level) => accumulator + level.taker_buyer + level.taker_seller, 0)
+            const totalDelta = candle.footprint.reduce((accumulator, level) => accumulator + level.taker_buyer - level.taker_seller, 0)
+
+            ctx.fillStyle = BRIGHT_BG;
+            ctx.strokeStyle = "white";
+            ctx.strokeStyle = "white";
+            ctx.fillRect(r_open.x - gridDimension.x / 2, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT), gridDimension.x, VOL_PROFILE_HEIGHT);
+            ctx.strokeRect(r_open.x - gridDimension.x / 2, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT), gridDimension.x, VOL_PROFILE_HEIGHT);
+            ctx.fillRect(r_open.x - gridDimension.x / 2, canvas.height - (X_AXIS_WIDTH + 2 * VOL_PROFILE_HEIGHT), gridDimension.x, VOL_PROFILE_HEIGHT);
+            ctx.strokeRect(r_open.x - gridDimension.x / 2, canvas.height - (X_AXIS_WIDTH + 2 * VOL_PROFILE_HEIGHT), gridDimension.x, VOL_PROFILE_HEIGHT);
+            
+            ctx.font = "14px Roboto";
+            ctx.fillStyle = "white";
+            ctx.textBaseline = "middle";
+            ctx.textAlign = 'center';
+            ctx.fillText(totalVolume.toFixed(1), r_open.x, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT) + VOL_PROFILE_HEIGHT / 2);
+
+            ctx.fillStyle = totalDelta > 0 ? GREEN : RED;
+            ctx.fillText(totalDelta > 0 ? `+${totalDelta.toFixed(1)}` : totalDelta.toFixed(1), r_open.x, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT) - VOL_PROFILE_HEIGHT / 2);
         }
     });
 
@@ -222,7 +242,7 @@ function renderChart(data: FootprintCandle[]) {
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.font = "12px Arial";
+    ctx.font = "12px Roboto";
 
     y_ticks.forEach((p, i) => {
         const r = transform(0, p, state.t_min, state.t_max, state.p_min, state.p_max, canvas.width, canvas.height, state.m_x, state.m_y);
@@ -258,6 +278,22 @@ function renderChart(data: FootprintCandle[]) {
     ctx.strokeStyle = "white";
     drawLine(ctx, 0, canvas.height - X_AXIS_WIDTH, canvas.width, canvas.height - X_AXIS_WIDTH);
     drawLine(ctx, canvas.width - Y_AXIS_WIDTH, 0, canvas.width - Y_AXIS_WIDTH, canvas.height);
+
+    
+
+    ctx.fillStyle = BRIGHT_BG;
+    ctx.strokeStyle = "white";
+    ctx.fillRect(0, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT), Y_AXIS_WIDTH, VOL_PROFILE_HEIGHT);
+    ctx.strokeRect(0, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT), Y_AXIS_WIDTH, VOL_PROFILE_HEIGHT);
+    ctx.fillRect(0, canvas.height - (X_AXIS_WIDTH + 2 * VOL_PROFILE_HEIGHT), Y_AXIS_WIDTH, VOL_PROFILE_HEIGHT);
+    ctx.strokeRect(0, canvas.height - (X_AXIS_WIDTH + 2 * VOL_PROFILE_HEIGHT), Y_AXIS_WIDTH, VOL_PROFILE_HEIGHT);
+    
+    ctx.font = "14px Roboto";
+    ctx.fillStyle = "white";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = 'center';
+    ctx.fillText("Volume", Y_AXIS_WIDTH / 2, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT) + VOL_PROFILE_HEIGHT / 2);
+    ctx.fillText("Delta", Y_AXIS_WIDTH / 2, canvas.height - (X_AXIS_WIDTH + VOL_PROFILE_HEIGHT) - VOL_PROFILE_HEIGHT / 2);
 
 }
 
