@@ -116,6 +116,26 @@ canvas.addEventListener("mousemove", e => {
     }
 });
 
+canvas.addEventListener("wheel", (e: WheelEvent) => {
+    e.preventDefault(); // prevent page scrolling
+    state = setState(state, { isZoomingX : true })
+    prevState = setPrevState(prevState, { t_min: state.t_min, t_max: state.t_max, t_ref: (state.t_min + state.t_max) / 2})
+    const m_x = e.deltaY < 0 ? Math.pow(3, 0.1) : Math.pow(3, -0.1);
+    state = setState(state, { 
+        m_x: m_x,
+        t_min: prevState.t_ref + (prevState.t_min - prevState.t_ref) / m_x,
+        t_max: prevState.t_ref + (prevState.t_max - prevState.t_ref) / m_x
+    });
+
+    console.log(m_x, state.t_max - state.t_min, (prevState.t_min - prevState.t_ref));
+
+    const intervalSize = getClosestTimeInterval((state.t_max - state.t_min) / INIT_TICK_X);
+    state = setState(state, { tick_x: intervalSize, isZoomingX: false });
+
+    initCanvas(ctx);
+    renderChart(state.data);
+});
+
 canvas.addEventListener("mouseup", () => {
     state = setState(state, { isDragging: false, isPanning: false, isZoomingX: false, isZoomingY: false });
     prevState = setPrevState(prevState, { m_x: state.m_x, m_y: state.m_y });
