@@ -9,6 +9,30 @@ from decimal import Decimal, ROUND_HALF_UP
 app = Flask(__name__)
 CORS(app)
 
+async def fetch_aggtrade_t(t):
+    conn = await asyncpg.connect(
+        user="postgres",
+        password="Asdf12345^&",
+        database="binance",
+        host="localhost",
+        port=5432
+    )
+
+    query = open("./server/db/aggtrade_t.sql").read()  # or put the SQL inline
+    rows = await conn.fetch(query, t)
+    await conn.close()
+
+    result = []
+
+    for r in rows:
+        result.append({
+            "t" : float(r['trade_time'].quantize(Decimal("1"), rounding=ROUND_HALF_UP)),
+            "price" : float(r['price'].quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+        })
+
+    return result
+
+
 async def fetch_footprints(start, end, bin_width=1.0):
     conn = await asyncpg.connect(
         user="postgres",
@@ -116,6 +140,15 @@ def get_last_candle():
             return asyncio.run(fetch_last_candle(start_obj, end_obj, symbol="BTCUSDT", bin_width=float(bin_width)))
         if bin_count is not None:
             return asyncio.run(fetch_last_candle(start_obj, end_obj, symbol="BTCUSDT", bin_count=float(bin_count)))
+        
+@app.route("/api/aggtrade", methods = ['GET'])
+def get_aggtrade_t():
+    if request.method == 'GET':
+        t = request.args.get("t")
+        if t is None:
+            return []
+        return asyncio.run(fetch_aggtrade_t(float(t)))
+
     
 if __name__ == "__main__":
     app.run(debug = True)

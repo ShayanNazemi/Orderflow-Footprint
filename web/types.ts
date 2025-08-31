@@ -41,6 +41,8 @@ export type CanvasState = {
     decimalY      : number,
 
     data          : FootprintCandle[],
+    dataByTime    : Map<number, FootprintCandle>,
+
     mode          : 'vol/delta' | 'bid/ask',
     gridDimension : {
         x         : number,

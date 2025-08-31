@@ -21,6 +21,12 @@ canvas {
     z-index: 2;        /* top canvas for mouse/rect overlays */
     pointer-events: none; /* allow mouse to pass through to chart if needed */
 }
+
+#ticker {
+    z-index: 3;
+    pointer-events: none;
+}
+
 #controls {
     position: fixed;
     z-index: 3;

@@ -15,6 +15,11 @@ const overlayCtx = overlayCanvas.getContext('2d')!;
 overlayCanvas.width = window.innerWidth;
 overlayCanvas.height = window.innerHeight;
 
+const tickerCanvas = document.getElementById('ticker') as HTMLCanvasElement;
+const tickerCtx = tickerCanvas.getContext('2d')!;
+tickerCanvas.width = window.innerWidth;
+tickerCanvas.height = window.innerHeight;
+
 const VOL_BAR_HEIGHT = 10;
 const INIT_tickX = 20;
 const INIT_tickY = 20;
@@ -30,7 +35,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/footprint?start=2025-08-30_15:40:00&end=2025-08-30_18:55:00&bin_width=10')
+fetch('http://127.0.0.1:5000/api/footprint?start=2025-08-30_20:00:00&end=2025-08-31_00:10:00&bin_width=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -44,11 +49,7 @@ function isOnYAxis(e: MouseEvent) {
     return (canvas.width - Y_AXIS_WIDTH) <= e.clientX && e.clientX <= canvas.width && e.clientY <= (canvas.height - X_AXIS_WIDTH);
 }
 
-canvas.addEventListener("dblclick", e => {
-    initCanvas(ctx);
 
-    onDataFetched(state.data);
-})
 
 canvas.addEventListener("mousedown", e => {
     if (isOnXAxis(e)) {
@@ -335,12 +336,7 @@ function onDataFetched(data: FootprintCandle[]) {
     const intervalsize = getClosestTimeInterval((tMax - tMin) / INIT_tickX)
     const tickSize = getClosestTickSize((pMax - pMin) / INIT_tickY);
 
-    const candlesByTime = data.reduce((acc, c) => {
-        acc[c.t] = c;
-        return acc;
-    }, {});
-
-    console.log(candlesByTime)
+    const dataByTime = new Map(data.map(d => [new Date(d.t).getTime(), d]));
 
     state = setState(state, { 
         tMin: tMin,
@@ -352,7 +348,8 @@ function onDataFetched(data: FootprintCandle[]) {
         tickX: intervalsize,
         tickY: tickSize,
 
-        data: data
+        data: data,
+        dataByTime: dataByTime
     });
     renderChart(data);
 }
@@ -380,13 +377,6 @@ btn.addEventListener("click", () => {
     renderChart(state.data);
 });
 
-canvas.addEventListener("click", (e: MouseEvent) => {
-    const z = inverseTransform(e.clientX, e.clientY, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY);
-    const roundedT = Math.round(z.t / (60 * 1000)) * 60 * 1000;
-    const roundedR = transform(roundedT, z.p, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY)
-
-    console.log(state.data.filter(a => new Date(a.t).getTime() == roundedT))
-})
 
 canvas.addEventListener("mousemove", (e: MouseEvent) => {
     const x = e.clientX;
@@ -430,3 +420,54 @@ canvas.addEventListener("mousemove", (e: MouseEvent) => {
     }
 
 });
+
+
+
+canvas.addEventListener("dblclick", (e: MouseEvent) => {
+    const z = inverseTransform(e.clientX, e.clientY, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY);
+    const roundedT = Math.round(z.t / (60 * 1000)) * 60 * 1000;
+    const roundedR = transform(roundedT, z.p, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY)
+    const candle = state.dataByTime.get(roundedT)
+    if (candle && z.p <= candle.high && z.p >= candle.low) {
+        fetch(`http://127.0.0.1:5000/api/aggtrade?t=${roundedT}`).then(r => r.json()).then(
+            (data) => {
+                tickerCtx.clearRect(0, 0, tickerCanvas.width, tickerCanvas.height);
+                const w = 300;
+                const h = 200;
+                tickerCtx.fillStyle = BRIGHT_BG;
+                tickerCtx.strokeStyle = LIGHT_GRAY;
+                tickerCtx.fillRect(tickerCanvas.width - w - Y_AXIS_WIDTH, HEADER_HEIGHT,w, h);
+                tickerCtx.strokeRect(tickerCanvas.width - w - Y_AXIS_WIDTH, HEADER_HEIGHT,w, h);
+
+                
+                const tMin = Math.min(...data.map(d => d.t));
+                const tMax = Math.max(...data.map(d => d.t));
+                const pMin = Math.min(...data.map(d => d.price));
+                const pMax = Math.max(...data.map(d => d.price));
+
+  
+                const xScale = (t: number) => tickerCanvas.width - w - Y_AXIS_WIDTH + ((t - tMin) / (tMax - tMin)) * 0.8 * w + 0.1 * w;
+                const yScale = (price: number) => h - ((price - pMin) / (pMax - pMin)) * 0.8 * h + HEADER_HEIGHT - 0.1 * h;
+                tickerCtx.beginPath();
+                tickerCtx.strokeStyle = "lightblue";
+                tickerCtx.lineWidth = 2;
+
+                data.forEach((point, i) => {
+                    const x = xScale(point.t);
+                    const y = yScale(point.price);
+                    if (i === 0) {
+                    tickerCtx.moveTo(x, y);
+                    } else {
+                    tickerCtx.lineTo(x, y);
+                    }
+                });
+                tickerCtx.stroke();
+            }
+        );
+    } else {
+        initCanvas(ctx);
+        onDataFetched(state.data);
+
+    }
+});
+    
