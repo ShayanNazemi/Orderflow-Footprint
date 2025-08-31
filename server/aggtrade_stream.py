@@ -116,12 +116,11 @@ async def main():
                                     """,
                                     footprint_rows
                                 )
-
                                 print(f"Stored candle + footprint at {t}")
-
-                    except (websockets.ConnectionClosed, asyncio.TimeoutError):
-                        print("Disconnected, reconnecting in 1 seconds...")
-                        await asyncio.sleep(1)
+                    except (websockets.ConnectionClosed, asyncio.TimeoutError) as e:
+                        print("Disconnected, reconnecting in 5 seconds...")
+                        print(e)
+                        await asyncio.sleep(5)
 
         except Exception as e:
             print("Error happened in re-establishing new websocket connection! Sleeping for 1 minute ...")

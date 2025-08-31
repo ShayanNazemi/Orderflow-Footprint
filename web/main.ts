@@ -16,15 +16,11 @@ overlayCanvas.width = window.innerWidth;
 overlayCanvas.height = window.innerHeight;
 
 const VOL_BAR_HEIGHT = 10;
-
 const INIT_tickX = 20;
 const INIT_tickY = 20;
-
 const VOL_PROFILE_HEIGHT = 30;
-
 const POINTER_HEIGHT = 30;
-const POINTER_WIDTH = 100;
-
+const POINTER_WIDTH = 120;
 const HEADER_HEIGHT = 60;
 
 
@@ -34,14 +30,12 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/footprint?start=2025-08-20_15:40:00&end=2025-08-30_16:55:00&bin_width=10')
+fetch('http://127.0.0.1:5000/api/footprint?start=2025-08-30_15:40:00&end=2025-08-30_18:55:00&bin_width=10')
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
 });
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Mouse Event Listeners
 function isOnXAxis(e: MouseEvent) {
     return (canvas.height - X_AXIS_WIDTH) <= e.clientY && e.clientY <= canvas.height && e.clientX <= (canvas.width - Y_AXIS_WIDTH);
 }
@@ -129,8 +123,6 @@ canvas.addEventListener("wheel", (e: WheelEvent) => {
         tMax: prevState.tRef + (prevState.tMax - prevState.tRef) / mX
     });
 
-    console.log(mX, state.tMax - state.tMin, (prevState.tMin - prevState.tRef));
-
     const intervalSize = getClosestTimeInterval((state.tMax - state.tMin) / INIT_tickX);
     state = setState(state, { tickX: intervalSize, isZoomingX: false });
 
@@ -164,11 +156,11 @@ function renderChart(data: FootprintCandle[]) {
     const xTicks = linspaceDivisible(state.tMin, state.tMax, state.tickX);
     const yTicks = linspaceDivisible(state.pMin, state.pMax, state.tickY);
 
-    console.log(xTicks.length)
-
     const rOrigin = transform(0, 0, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY);
     const rPT = transform(60 * 1000, 20, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY);
-    const gridDimension = {x: Math.abs(rPT.x - rOrigin.x), y: Math.abs(rPT.y - rOrigin.y)};
+    
+    state = setState(state, {gridDimension : {x: Math.abs(rPT.x - rOrigin.x), y: Math.abs(rPT.y - rOrigin.y)}});
+    const gridDimension = state.gridDimension;
 
     const candleWidth = gridDimension.x >= CANDLE_WIDTH ? CANDLE_WIDTH : gridDimension.x
     
@@ -343,6 +335,13 @@ function onDataFetched(data: FootprintCandle[]) {
     const intervalsize = getClosestTimeInterval((tMax - tMin) / INIT_tickX)
     const tickSize = getClosestTickSize((pMax - pMin) / INIT_tickY);
 
+    const candlesByTime = data.reduce((acc, c) => {
+        acc[c.t] = c;
+        return acc;
+    }, {});
+
+    console.log(candlesByTime)
+
     state = setState(state, { 
         tMin: tMin,
         tMax: tMax,
@@ -381,6 +380,14 @@ btn.addEventListener("click", () => {
     renderChart(state.data);
 });
 
+canvas.addEventListener("click", (e: MouseEvent) => {
+    const z = inverseTransform(e.clientX, e.clientY, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY);
+    const roundedT = Math.round(z.t / (60 * 1000)) * 60 * 1000;
+    const roundedR = transform(roundedT, z.p, state.tMin, state.tMax, state.pMin, state.pMax, canvas.width, canvas.height, state.mX, state.mY)
+
+    console.log(state.data.filter(a => new Date(a.t).getTime() == roundedT))
+})
+
 canvas.addEventListener("mousemove", (e: MouseEvent) => {
     const x = e.clientX;
     const y = e.clientY;
@@ -409,8 +416,6 @@ canvas.addEventListener("mousemove", (e: MouseEvent) => {
         overlayCtx.textBaseline = "middle";
         overlayCtx.textAlign = "left";
         overlayCtx.fillText(z.p.toFixed(1), canvas.width - Y_AXIS_WIDTH + MARGIN, y);
-
-
 
         const hoveredCandle = state.data.filter(x => (new Date(x.t)).getTime() == roundedT).at(0);
         const diff = hoveredCandle && hoveredCandle.close - hoveredCandle.open;

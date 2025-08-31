@@ -28,6 +28,10 @@ export const INIT_STATE: CanvasState = {
 
     data      : [],
     mode : 'bid/ask',
+    gridDimension: {
+        x : 0,
+        y : 0
+    }
 }
 
 
