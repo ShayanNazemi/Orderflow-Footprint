@@ -1,16 +1,17 @@
 -- 1️⃣ Raw trades table
 CREATE TABLE agg_trades (
-    event_time      TIMESTAMP NOT NULL,
-    trade_time      TIMESTAMP NOT NULL,
-    symbol          TEXT NOT NULL,
-    agg_id          BIGINT NOT NULL,
-    price           NUMERIC(18,8) NOT NULL,
-    quantity        NUMERIC(18,8) NOT NULL,
-    first_trade_id  BIGINT NOT NULL,
-    last_trade_id   BIGINT NOT NULL,
-    is_buyer_maker  BOOLEAN NOT NULL,
-    PRIMARY KEY (symbol, agg_id)
+    event_time TIMESTAMPTZ NOT NULL,
+    trade_time TIMESTAMPTZ NOT NULL,
+    symbol TEXT NOT NULL,
+    agg_id BIGINT NOT NULL,
+    price NUMERIC,
+    quantity NUMERIC,
+    first_trade_id BIGINT,
+    last_trade_id BIGINT,
+    is_buyer_maker BOOLEAN,
+    PRIMARY KEY (trade_time, agg_id)
 );
+
 
 -- Optional index for fast queries by time
 CREATE INDEX idx_agg_trades_trade_time ON agg_trades(trade_time);
@@ -19,7 +20,7 @@ CREATE INDEX idx_agg_trades_trade_time ON agg_trades(trade_time);
 
 -- 2️⃣ Candles table
 CREATE TABLE candles (
-    bucket_time TIMESTAMP NOT NULL,
+    bucket_time TIMESTAMPTZ NOT NULL,
     symbol      TEXT NOT NULL,
     open        NUMERIC(18,8) NOT NULL,
     high        NUMERIC(18,8) NOT NULL,
@@ -36,7 +37,7 @@ CREATE INDEX idx_candles_bucket_time ON candles(bucket_time);
 
 -- 3️⃣ Footprints table
 CREATE TABLE footprints (
-    bucket_time   TIMESTAMP NOT NULL,
+    bucket_time   TIMESTAMPTZ NOT NULL,
     symbol        TEXT NOT NULL,
     price_level   NUMERIC(18,8) NOT NULL,
     taker_buyer   NUMERIC(24,8) NOT NULL,
