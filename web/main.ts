@@ -20,6 +20,19 @@ const tickerCtx = tickerCanvas.getContext('2d')!;
 tickerCanvas.width = window.innerWidth;
 tickerCanvas.height = window.innerHeight;
 
+resizeCanvas(canvas, ctx);
+// resizeCanvas(overlayCanvas, overlayCtx);
+// resizeCanvas(tickerCanvas, tickerCtx);
+
+
+// redraw after resize
+window.addEventListener("resize", () => {
+    console.log("RESIZE")
+    resizeCanvas(canvas, ctx)
+    initCanvas(ctx);
+    renderChart(state.data);
+});
+
 const VOL_BAR_HEIGHT = 10;
 const INIT_tickX = 20;
 const INIT_tickY = 20;
@@ -35,7 +48,7 @@ let prevState: CanvasState = { ...state };
 
 initCanvas(ctx);
 
-fetch('http://127.0.0.1:5000/api/footprint?start=2025-08-30_20:00:00&end=2025-08-31_00:10:00&bin_width=10')
+fetch("http://155.248.225.94:5000/api/footprint?start=2025-09-02_20:00:00&end=2025-09-02_20:10:00&bin_width=10")
     .then(r => r.json())
     .then((data: FootprintCandle[]) => {
         onDataFetched(data);
@@ -471,3 +484,17 @@ canvas.addEventListener("dblclick", (e: MouseEvent) => {
     }
 });
     
+
+function resizeCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+
+  // set the "real" internal resolution
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+
+  console.log(dpr)
+
+  // scale everything to keep drawing units in CSS pixels
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
